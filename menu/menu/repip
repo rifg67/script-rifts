@@ -1,0 +1,244 @@
+#!/bin/bash
+data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+date_list=$(date +"%Y-%m-%d" -d "$data_server")
+#########################
+[[ ! -f /usr/bin/git ]] && apt install git -y &> /dev/null
+# COLOR VALIDATION
+
+y='\033[1;93m'
+c="\033[0;36m"
+g="\e[92;1m"
+r="\033[1;31m"
+NC='\e[0m'
+gray="\e[1;30m"
+Blue="\033[1;36m"
+GREEN='\033[0;32m'
+grenbo="\033[1;95m"
+yell='\e[33m'
+BGX="\033[42m"
+END='\e[0m'
+bc="\e[5;36m"
+ungu='\033[0;35m'
+Green_background="\033[42;37m"
+Red_background="\033[41;37m"
+Suffix="\033[0m"
+NC='\e[0m'
+nama='XWAN STORE'
+#################
+if [[ ! -d /etc/github ]]; then  # Memeriksa apakah folder /etc/github tidak ada
+    mkdir -p /etc/github         # Membuat folder /etc/github jika tidak ada
+fi
+
+if [[ ! -e /etc/github/cf ]]; then  # Memeriksa apakah file /etc/github/cf tidak ada
+    curl -s http://myrid.my.id/cf > /etc/github/cf  # Mengunduh dan membuat file cf jika belum ada
+fi
+
+        curl -s http://myrid.my.id/token > /etc/github/api
+        curl -s http://myrid.my.id/email > /etc/github/email
+        curl -s http://myrid.my.id/nama > /etc/github/username
+        clear
+CHATID="1210833546"
+KEY="6006599143:AAEgstCAioq35JgX97HaW_G3TAkLKzLZS_w"
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+MYIP=$(curl -sS ipv4.icanhazip.com)
+URL_IZIN=$(cat /root/.url | cut -d"/" -f4-5)
+TOKEN=$(cat /etc/github/api)
+REPO="https://github.com/${URL_IZIN}"
+EMAIL=$(cat /etc/github/email)
+USER=$(cat /etc/github/username)
+
+function lane() {
+echo -e "${bc} ————————————————————————————————————————${NC}"
+}
+
+function LOGO() {
+echo -e ""
+lane
+echo -e "${ungu}            $nama            "
+lane
+echo -e ""
+}
+
+function Credit_nbstore() {
+sleep 1
+echo -e "" 
+lane
+echo -e "${ungu}      Terimakasih sudah menggunakan-"
+echo -e "         Script Credit by $nama"
+lane
+echo -e ""
+sleep 3
+regisip
+}
+# Fungsi untuk menampilkan daftar IP yang tersimpan di /root/.vpsoffline dalam format tabel dengan warna putih tebal
+list-ips() {
+git clone ${REPO}
+    clear
+    echo -e "${c}DAFTAR IP VPS${NC}"
+
+    # Header tabel
+    printf "${bc}┌──────────────────────────────────────────────────────┐\033[0m\n"
+    printf "${bc}│\033[1;37m %-15s ${bc}│\033[1;37m %-15s ${bc}│\033[1;37m %-4s ${bc}│\033[1;37m %-9s ${bc}│\033[0m\n" "IP Address" "Nama VPS" "Sisa" "Status SC"
+    printf "${bc}│──────────────────────────────────────────────────────│\033[0m\n"
+
+    if [[ -f /root/.vpsoffline ]]; then
+        # Membaca file /root/.vpsoffline dan menampilkan isinya dalam format tabel
+        while IFS=' ' read -r ip_address nama_vps sisa_hari status_sc; do
+            printf "${bc}│\033[1;37m %-15s ${bc}│\033[1;37m %-15s ${bc}│\033[1;37m %-4s ${bc}│\033[1;37m %-9s ${bc}│\033[0m\n" "$ip_address" "$nama_vps" "$sisa_hari" "$status_sc"
+        done < /root/.vpsoffline
+    else
+        # Jika file tidak ditemukan atau kosong
+        printf "${bc}│\033[1;37m %-69s ${bc}│\033[0m\n" "File /root/.vpsoffline tidak ditemukan atau kosong."
+    fi
+
+    # Footer tabel
+    printf "${bc}└──────────────────────────────────────────────────────┘\033[0m\n"
+}
+
+
+# Fungsi untuk mengganti IP yang terdaftar
+change-ip() {
+    if [[ ! -e /root/inventory.ini ]]; then 
+        echo -e "${Blue}[INFO]${NC} Membuat file inventory.ini baru..."
+        echo "[vps_group]" > /root/inventory.ini
+    fi
+
+    echo -e "${y}\nMASUKAN IP VPS YANG INGIN DIGANTI!${NC}"
+    echo ""
+    read -p "Input IP Address yang sudah terdaftar: " ipqu
+    CLIENT_EXISTS=$(grep -w $ipqu /root/izinvps/ipx | wc -l)
+
+    if [[ ${CLIENT_EXISTS} != '1' ]]; then
+        echo -e "${Red_background}[ERROR]${NC} IP Tidak Ditemukan!"
+        exit 0
+    fi
+
+    echo -e "${g}\nIP Ditemukan! Silakan masukkan IP baru.${NC}"
+    echo ""
+    read -p "Input IP Baru: " new_ip
+    echo ""
+    # Input Domain
+    echo -e "${Blue}\nMasukkan Domain yang Ingin Digunakan:${NC}"
+    read -p "Input Domain: " lol
+    clear
+
+    # Output hasil
+    echo -e "${Green_background}[SUKSES]${NC} Domain '${grenbo}${lol}${NC}' berhasil diproses dengan IP baru '${g}${new_ip}${NC}'."
+    # Mendapatkan Nama VPS sesuai dengan IP yang lama
+    NAMA_VPS=$(grep -w $ipqu /root/izinvps/ipx | awk '{print $2}')
+    sed -i "s/${ipqu}/${new_ip}/g" /root/izinvps/ipx
+
+    entry="${NAMA_VPS} ansible_host=${new_ip} ansible_user=root domain=${lol} ansible_python_interpreter=/usr/bin/python3"
+    echo "$entry" >> /root/inventory.ini
+
+    cd /root/izin
+    git config --global user.email "${EMAIL}" &> /dev/null
+    git config --global user.name "${USER}" &> /dev/null
+    rm -rf .git &> /dev/null
+    git init &> /dev/null
+    git add . &> /dev/null
+    git commit -m "change IP" &> /dev/null
+    git branch -M ipuk &> /dev/null
+    git remote add origin https://github.com/${USER}/izinvps.git
+    git push -f https://${TOKEN}@github.com/${USER}/izinvps.git &> /dev/null
+    cd
+    rm -rf /root/izinvps
+
+    # Konfigurasi domain ke Cloudflare
+    DO=$(echo "$lol" | cut -d "." -f2-)
+    SUB=$(echo "$lol" | cut -d "." -f1)
+    SUB_DOMAIN=${SUB}.${DO}
+    NS_DOMAIN=*.${SUB_DOMAIN}
+    CF_KEY=$(cat /etc/github/cf)
+    IP=${new_ip}
+
+set -euo pipefail
+echo "Pointing Domain for $SUB_DOMAIN..."
+ZONE=$(
+		curl -sLX GET "https://api.cloudflare.com/client/v4/zones?name=${DO}&status=active" \
+		-H "Authorization: Bearer ${CF_KEY}" \
+		-H "Content-Type: application/json" | jq -r .result[0].id
+	)
+
+	RECORD=$(
+		curl -sLX GET "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records?name=${SUB_DOMAIN}" \
+		-H "Authorization: Bearer ${CF_KEY}" \
+		-H "Content-Type: application/json" | jq -r .result[0].id
+	)
+
+		RECORD1=$(
+		curl -sLX GET "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records?name=${NS_DOMAIN}" \
+		-H "Authorization: Bearer ${CF_KEY}" \
+		-H "Content-Type: application/json" | jq -r .result[0].id
+	)
+
+	if [[ "${#RECORD}" -le 10 ]]; then
+		RECORD=$(
+			curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" \
+			-H "Authorization: Bearer ${CF_KEY}" \
+			-H "Content-Type: application/json" \
+			--data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","proxied":false}' | jq -r .result.id
+		)
+	else
+		RESULT=$(
+		curl -sLX PUT "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records/${RECORD}" \
+		-H "Authorization: Bearer ${CF_KEY}" \
+		-H "Content-Type: application/json" \
+		--data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","proxied":false}'
+	)
+	fi
+		
+	if [[ "${#RECORD1}" -le 10 ]]; then
+		RECORD2=$(
+			curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" \
+			-H "Authorization: Bearer ${CF_KEY}" \
+			-H "Content-Type: application/json" \
+			--data '{"type":"A","name":"'${NS_DOMAIN}'","content":"'${IP}'","proxied":true}' | jq -r .result.id
+		)
+	else
+
+	RESULT2=$(
+		curl -sLX PUT "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records/${RECORD1}" \
+		-H "Authorization: Bearer ${CF_KEY}" \
+		-H "Content-Type: application/json" \
+		--data '{"type":"A","name":"'${NS_DOMAIN}'","content":"'${IP}'","proxied":true}'
+	)	
+	fi
+clear
+    TEXT="
+    <code>───────────────────────────</code>
+    <code>   SUCCESS CHANGE IP VPS</code>
+    <code>───────────────────────────</code>
+    <code>Nama Vps       : $NAMA_VPS</code>
+    <code>Old IP Address : $ipqu</code>
+    <code>New IP Address : $new_ip</code>
+    <code>Domain Vps     : $lol</code>
+    <code>───────────────────────────</code>
+    "
+    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+    clear
+    lane
+    echo -e "${g}         SUCCESS CHANGE IP VPS      $NC"
+    lane
+    echo -e "${y}  NAMA VPS   :${NC}${yell} $NAMA_VPS ${NC}"
+    echo -e "${y}  OLD IP     :${NC}${yell} $ipqu ${NC}"
+    echo -e "${y}  NEW IP     :${NC}${yell} $new_ip ${NC}"
+    echo -e "${y}  DOMAIN VPS :${NC}${yell} $lol ${NC}"
+    lane
+echo -e "[ ${Blue}WARNING${NC} ] Do you want to Replace Again ? (y/n)? "
+read answer
+
+# Memeriksa input jawaban
+if [[ $answer =~ ^[Yy]$ ]]; then
+    repip  # Panggil fungsi cf
+else
+    main_menu  # Panggil fungsi utility
+fi
+
+}
+
+# Menampilkan daftar IP yang tersimpan di /root/.vpsoffline sebelum mengganti IP
+list-ips
+# Memanggil fungsi change-ip setelah menampilkan daftar 
+change-ip

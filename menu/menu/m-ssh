@@ -1,0 +1,131 @@
+#!/bin/bash
+
+BlueCyan='\e[5;36m'
+Xark='\e[0m'
+ungu='\033[0;35m'
+yellow='\e[33m'
+WhiteBe='\e[5;37m'
+GreenBe='\e[5;32m'
+BlueCyan='\e[5;36m'
+BLUE="\033[4;34m"
+BG_BLU="\033[44;1m" # BG BIRU
+Xark='\e[0m'
+GREN="\033[92m"
+clear
+
+# . Create Ssh
+function Create_Ssh() {
+  add-ssh
+}
+
+# . Create Triall
+function Create_Trial() {
+  trial-ssh
+}
+
+# . Hapus akun ssh
+function Delete_Ssh(){
+  del-ssh
+}
+
+# . List Member ssh
+function List_Member() {
+  member-ssh
+}
+
+# . Auto Kill ssh
+function Auto_Kill() {
+  auto-kill
+}
+
+# . Check user Login
+function Check_Mullog() {
+  limitssh-ip
+}
+
+# . Delete Expiry
+function Delete_Exp() {
+  delexp
+}
+
+# . Changes Limit
+function Changes_Limit() {
+  limitssh-on-off
+}
+
+# . Limit On off
+function Limit_On_Off() {
+  limitssh-on-off
+}
+
+#. Renew Ssh
+function Renew_Ssh() {
+  renew-ssh
+}
+
+# . Lock Ssh
+function Lock() {
+  lock
+}
+
+# . Unlock Ssh
+function Unlock() {
+  unlock
+}
+
+# . Detail Akun Ssh
+function Details_Account(){
+  user-ssh
+}
+
+function Monitor_Ssh() {
+  ceklim
+}
+
+function Recovery_Ssh() {
+  recover
+}
+
+function Menu_Features() {
+  echo -e "\033[97;1m┌──────────────────────────────────────────┐\033[0m"
+ echo -e "\033[97;1m \033[0m \033[1;33m            SSH MANAGER         \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ \e[33m [01] \033[97;1mCheck Users Login      \033[0m"
+  echo -e "\033[97;1m│ \e[33m [02] \033[97;1mCreate SSH Account     \033[0m"
+  echo -e "\033[97;1m│ \e[33m [03] \033[97;1mDelete SSH Account     \033[0m"
+  echo -e "\033[97;1m│ \e[33m [04] \033[97;1mRenew SSH Account      \033[0m"
+  echo -e "\033[97;1m│ \e[33m [05] \033[97;1mCreate Trial Account    \033[0m"
+  echo -e "\033[97;1m│ \e[33m [06] \033[97;1mList Member Accounts    \033[0m"
+  echo -e "\033[97;1m│ \e[33m [07] \033[97;1mDelete Expired Accounts \033[0m"
+  echo -e "\033[97;1m│ \e[33m [08] \033[97;1mLock SSH Account        \033[0m"
+  echo -e "\033[97;1m│ \e[33m [09] \033[97;1mUnlock SSH Account      \033[0m"
+  echo -e "\033[97;1m│ \e[33m [10] \033[97;1mEdit Limit IP Account   \033[0m"
+  echo -e "\033[97;1m│ \e[33m [11] \033[97;1mToggle Limit IP (On/Off) \033[0m"
+  echo -e "\033[97;1m│ \e[33m [12] \033[97;1mDetail Account Info        \033[0m"
+  echo -e "\033[97;1m│ \e[33m [13] \033[97;1mCheck Login UDP           \033[0m"
+  echo -e "\033[97;1m│ \e[33m [14] \033[97;1mBack to Main Menu          \033[0m"
+  echo -e "\033[97;1m│ \033[92m [x]  Exit                           \033[0m"
+  echo -e "\033[97;1m└──────────────────────────────────────────┘\033[0m"
+  echo -e ""
+}
+
+Menu_Features
+read -p "Select From Options [1-15 or x] :  " Ltt
+case $Ltt in
+1) clear ; Monitor_Ssh ;;
+2) clear ; Create_Ssh ;;
+3) clear ; Delete_Ssh ;;
+4) clear ; renew-ssh ;;
+5) clear ; Create_Trial ;;
+6) clear ; List_Member ;;
+7) clear ; Delete_Exp ;;
+8) clear ; Lock ;;
+9) clear ; Unlock ;;
+10) clear ; ganti-ip-ssh ;;
+11) clear ; Limit_On_Off ;;
+12) clear ; Details_Account ;;
+13) clear ; cekudp ;;
+14) clear ; menu ;;
+x) exit ;;
+*) m-ssh ;;
+esac

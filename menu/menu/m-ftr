@@ -1,0 +1,83 @@
+#!/bin/bash
+Green="\033[92;1m"
+White="\033[97;1m"
+NC='\033[0m'
+clear
+
+function draw_menu_box() {
+  echo -e "\033[97;1m┌──────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m                 ${Green}FEATURES${White}          \033[0m"       
+  echo -e "\033[97;1m├──────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ ${Green}1)${NC} Running Service                    \033[0m"
+  echo -e "\033[97;1m│ ${Green}2)${NC} Restart Service                    \033[0m"
+  echo -e "\033[97;1m│ ${Green}3)${NC} Auto Reboot                        \033[0m"
+  echo -e "\033[97;1m│ ${Green}4)${NC} Monitoring                         \033[0m"
+  echo -e "\033[97;1m│ ${Green}5)${NC} SpeedTest                          \033[0m"
+  echo -e "\033[97;1m│ ${Green}6)${NC} Delete All Account Exp             \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m│              ${Green}ADMIN AKSES${White}           \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ ${Green}7)${NC} Register IPVPS                     \033[0m"
+  echo -e "\033[97;1m│ ${Green}8)${NC} Poiting Domain                     \033[0m"
+  echo -e "\033[97;1m│ ${Green}9)${NC} Install SlowDns                    \033[0m"
+  echo -e "\033[97;1m│ ${Green}10)${NC} Change Banner                    \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m│              ${Green}MENU FIXX${White}             \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ ${Green}11)${NC} Fixx Haproxy                        \033[0m"
+  echo -e "\033[97;1m│ ${Green}12)${NC} Fixx Domain                         \033[0m"
+  echo -e "\033[97;1m│ ${Green}13)${NC} Optimize Ping                        \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m│              ${Green}MENU CLEAR${White}              \033[0m"
+  echo -e "\033[97;1m\033[97;1m├──────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ ${Green}14)${NC} Clear Cache                     \033[0m"
+  echo -e "\033[97;1m│ ${Green}15)${NC} Clear Logs                      \033[0m"
+  echo -e "\033[97;1m│ ${Green}16)${NC} Clear Cache File                \033[0m"
+  echo -e "\033[97;1m│ ${Green}17)${NC} Clear All Exp Akun                \033[0m"
+  echo -e "\033[97;1m\033[97;1m├──────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m│              ${Green}INFORMATION${White}              \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ ${Green}18)${NC} Info Service Port                  \033[0m"
+  echo -e "\033[97;1m│ ${Green}19)${NC} Information System                 \033[0m"
+  echo -e "\033[97;1m├──────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m│ ${Green}20)${NC} Limit-on-off XRAY                     \033[0m"
+  echo -e "\033[97;1m│ ${Green}21)${NC} Auto Kill Akun                \033[0m"
+  echo -e "\033[97;1m│ ${Green}22)${NC} Back to Menu                          \033[0m"
+  echo -e "\033[97;1m│ ${Green}x)${NC} EXIT                                  \033[0m"
+  echo -e "\033[97;1m└──────────────────────────────────────────┘\033[0m"
+}
+
+function Select_Menu() {
+  echo ""
+  read -p "Select From Options [1-22 or x]: " NB
+  case $NB in
+    1) clear ; run ;;
+    2) clear ; reset ;;
+    3) clear ; autoreboot ;;
+    4) clear ; gotop ;;
+    5) clear ; speedtest ;;
+    6) clear ; xp ;;
+    7) clear ; m-github ;;
+    8) clear ; cf ;;
+    9) clear ; wget -q http://raw.githubusercontent.com/rifg67/script-rifts//main/slowdns/installsl.sh && chmod +x installsl.sh && ./installsl.sh && reset ;;
+    10) clear ; nano /etc/issue.net ;;
+    11) clear ; fixhap ;;
+    12) clear ; fixcert ;;
+    13) clear ; optimize-bbr ;;
+    14) clear ; clearcache ;;
+    15) clear ; clearlog ;;
+    16) clear ; delet-cache-file ;;
+    17) clear ; delexp ;;
+    18) clear ; prot ;;
+    19) clear ; about ;;
+    20) clear ; limit-on-off ;;
+    21) clear ;auto-kill ;;
+    22) clear ; menu ;;
+    x) exit ;;
+    *) echo "Invalid input!" ;;
+  esac
+}
+
+clear
+draw_menu_box
+Select_Menu
