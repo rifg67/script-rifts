@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# WARNA
+BlueCyan='\e[5;36m'
+WhiteBe='\e[5;37m'
+GreenBe='\e[5;32m'
+Xark='\e[0m'
+r="\033[1;91m"
+ungu='\033[0;35m'
+yellow='\e[33m'
+BG_BLU="\033[44;1m"
+GREN="\033[92m"
+
+clear
+# FUNGSI MENU XRAY VLESS
+Create_Account_Vless()         { add-vle; }
+Create_Trial_Vless()           { trial-vle; }
+Delete_Account_Vless()         { del-vle; }
+List_Member()                  { member-vle; }
+Renew_Account_Vless()          { renew-vle; }
+Check_Account_Vless()          { cek-vle; }
+Changes_Limit_Quota_Vless()    { change-vless-qouta; }
+Change_Ip_Vless()              { ganti-ip-vless; }
+Detail_Config_Vless()          { check-vle; }
+Lock_Account_Vless()           { lock-vl; }
+Unlock_Account_Vless()         { unlock-vl; }
+Recovery_Vless()               { recover-vl; }
+
+Menu_Features() {
+  echo -e "\033[97;1m┌────────────────────────────────────────────┐\033[0m"
+  echo -e "\033[97;1m \033[0m \033[1;33m            VLESS MANAGER MENU            \033[0m"
+  echo -e "\033[97;1m├────────────────────────────────────────────┘\033[0m"
+  echo -e "\033[97;1m│ \033[33m[01]\033[0m Create Account            \033[0m"
+  echo -e "\033[97;1m│ \033[33m[02]\033[0m Trial Account             \033[0m"
+  echo -e "\033[97;1m│ \033[33m[03]\033[0m Delete Account            \033[0m"
+  echo -e "\033[97;1m│ \033[33m[04]\033[0m List Member Account       \033[0m"
+  echo -e "\033[97;1m│ \033[33m[05]\033[0m Renew Account             \033[0m"
+  echo -e "\033[97;1m│ \033[33m[06]\033[0m Change IP limit Accounts   \033[0m"
+  echo -e "\033[97;1m│ \033[33m[07]\033[0m Change Limit Bandwith Accounts \033[0m"
+  echo -e "\033[97;1m│ \033[33m[08]\033[0m Cek Login Account               \033[0m"
+  echo -e "\033[97;1m│ \033[33m[09]\033[0m Cek Detail Account        \033[0m"
+  echo -e "\033[97;1m│ \033[33m[10]\033[0m Lock Account              \033[0m"
+  echo -e "\033[97;1m│ \033[33m[11]\033[0m Unlock Account            \033[0m"
+  echo -e "\033[97;1m│ \033[33m[12]\033[0m Recovery Account          \033[0m"
+  echo -e "\033[97;1m│ \033[33m[13]\033[0m Back to Main Menu         \033[0m"
+  echo -e "\033[97;1m│ \033[92m[x]\033[0m  Exit                      \033[0m"
+  echo -e "\033[97;1m└────────────────────────────────────────────┘\033[0m"
+  echo -e ""
+}
+
+Menu_Features
+
+# INPUT PILIHAN6
+read -p "Select From Options [1-24 or x]: " Ltt
+
+case $Ltt in
+  1)  clear; Create_Account_Vless ;;
+  2)  clear; Create_Trial_Vless ;;
+  3)  clear; Delete_Account_Vless ;;
+  4)  clear; List_Member ;;
+  5)  clear; Renew_Account_Vless ;;
+  6)  clear; Change_Ip_Vless ;;
+  7)  clear; Changes_Limit_Quota_Vless ;;
+  8)  clear; cek-loginvl ;;
+  9)  clear; Detail_Config_Vless ;;
+  10) clear; Lock_Account_Vless ;;
+  11) clear; Unlock_Account_Vless ;;
+  12) clear; Recovery_Vless ;;
+  13) clear; menu ;;
+  x|X) exit ;;
+  *)  clear; m-vle ;;
+esac
