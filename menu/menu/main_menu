@@ -1,0 +1,432 @@
+#!/bin/bash
+
+# Definisi warna
+y='\033[1;93m'  # Kuning
+c='\033[0;36m'  # Cyan
+g='\033[0;32m'  # Hijau
+r='\033[1;31m'  # Merah
+NC='\033[0m'    # Reset warna
+
+# Fungsi untuk menampilkan menu utama
+show_menu() {
+    clear
+    echo -e "${c}———————————————————————————————————————${NC}"
+    echo -e "${y}                FEATURES${NC}"
+    echo -e "${c}———————————————————————————————————————${NC}"
+    echo -e "${g}  1.) Cek VPS Online${NC}"
+    echo -e "${g}  2.) Replace IP Offline${NC}"
+    echo -e "${g}  3.) Input Data VPS${NC}"  # Tambahan opsi baru
+    echo -e "${g}  4.) Hubungkan VPS${NC}"
+    echo -e "${g}  5.) Pasang SC ke VPS${NC}"
+    echo -e "${g}  6.) Rebuild VPS${NC}"
+    echo -e "${g}  7.) Ganti URL Izin${NC}"
+    echo -e "${g}  8.) Hapus Data Inventory${NC}"
+    echo -e "${r}  x.) Back To Menu${NC}"
+    echo -e "${c}———————————————————————————————————————${NC}"
+    echo -ne "${y}Pilih opsi [1-8/x]: ${NC}"
+}
+menu_ftr() {
+    show_menu
+    read -r option
+    case $option in
+        1)
+            cek_vps
+            ;;
+        2)
+            replace_ip_offline
+            ;;
+        3)
+            input_data_vps  # Tambahan opsi input data VPS
+            ;;
+        4)
+            hubungkan_vps
+            ;;
+        5)
+            pasang_sc_ke_vps
+            ;;
+        6)
+            rebuild_vps
+            ;;
+        7)
+            ganti_url_izin
+            ;;
+        8)
+            hapus_inventory
+            ;;
+        x)
+            echo -e "${y}Kembali ke menu utama...${NC}"
+            menu
+            ;;
+        *)
+            echo -e "${r}Pilihan tidak valid, coba lagi.${NC}"
+            menu_ftr
+            ;;
+    esac
+}
+# Fungsi Cek Vps
+cek_vps() {
+    cek_vps_online
+    echo -e "\n${g}Tugas selesai. Tekan Enter untuk kembali ke menu...${NC}"
+    read -r
+    menu_ftr
+}
+# Fungsi untuk replace IP offline
+replace_ip_offline() {
+    repip
+    menu_ftr
+}
+# Fungsi untuk input data VPS
+input_data_vps() {
+    clear
+    echo -e "${c}Menambahkan data VPS ke file inventory...${NC}"
+    INVENTORY_FILE="/root/inventory.ini"
+
+    if [[ ! -f $INVENTORY_FILE ]]; then
+        echo "[vps_group]" > $INVENTORY_FILE
+        echo -e "${y}File inventory baru dibuat.${NC}"
+    fi
+
+    while true; do
+        echo -ne "${y}Masukkan nama VPS (atau 'exit' untuk kembali): ${NC}"
+        read -r vps_name
+        [[ $vps_name == "exit" ]] && break
+
+        echo -ne "${y}Masukkan IP VPS: ${NC}"
+        read -r ansible_host
+
+        echo -ne "${y}Masukkan domain (${r}wajib sudah terpointing!${NC}): ${NC}"
+        read -r domain
+
+        # Validasi input
+        if [[ -z $vps_name || -z $ansible_host || -z $domain ]]; then
+            echo -e "${r}Data tidak boleh kosong. Coba lagi.${NC}"
+            continue
+        fi
+
+        echo "${vps_name} ansible_host=${ansible_host} ansible_user=root domain=${domain} ansible_python_interpreter=/usr/bin/python3" >> "$INVENTORY_FILE"
+        echo -e "${g}Data VPS berhasil ditambahkan.${NC}\n"
+        sleep 0.5 && clear
+    done
+
+    echo -e "${g}Selesai menambahkan data VPS.${NC}"
+    sleep 0.5
+    menu_ftr
+}
+
+hapus_inventory() {
+    INVENTORY_FILE="/root/inventory.ini"
+    if [[ -f $INVENTORY_FILE ]]; then
+        rm "$INVENTORY_FILE"
+        echo -e "${g}File inventory telah dihapus.${NC}"
+    else
+        echo -e "${r}File inventory tidak ditemukan.${NC}"
+    fi
+    echo -e "\n${g}Tekan Enter untuk kembali ke menu...${NC}"
+    read -r
+    menu_ftr
+}
+# Fungsi untuk hubungkan VPS
+hubungkan_vps() {
+    clear
+    # File inventory
+    INVENTORY_FILE="/root/inventory.ini"
+
+    # Memastikan sshpass sudah terinstal
+    if ! command -v sshpass &> /dev/null; then
+        echo -e "${y}sshpass tidak ditemukan. Menginstal sshpass...${NC}"
+        apt update -y &> /dev/null
+        apt install sshpass -y &> /dev/null
+        echo -e "${g}sshpass berhasil diinstal.${NC}"
+    fi
+
+    # Menghapus entri known_hosts untuk memastikan koneksi sukses
+    echo -e "${c}Menghapus semua entri SSH known_hosts...${NC}"
+    rm -f /root/.ssh/known_hosts
+
+    # Memeriksa apakah file inventory ada
+    if [[ ! -f $INVENTORY_FILE ]]; then
+        echo -e "${r}File inventory tidak ditemukan: $INVENTORY_FILE${NC}"
+        return
+    fi
+
+# Menanyakan apakah semua VPS memiliki password yang sama
+echo -ne "${y}Apakah semua VPS memiliki password yang sama? (Y/n): ${NC}"
+read -r same_password
+
+if [[ "${same_password,,}" == "y" ]]; then
+    # Jika semua VPS memiliki password yang sama
+    while true; do
+        echo -ne "${y}Masukkan password untuk semua VPS: ${NC}"
+        read -rs password
+        echo ""
+
+        # Memastikan password tidak kosong
+        if [[ -z "$password" ]]; then
+            echo -e "${r}Password tidak boleh kosong. Silakan coba lagi.${NC}"
+            continue
+        fi
+
+        # Menghubungkan ke semua VPS
+        echo -e "${c}Menghubungkan ke semua VPS yang terdaftar...${NC}"
+
+        while IFS= read -r line; do
+            # Skip baris kosong, komentar, atau grup
+            [[ -z $line || $line =~ ^# || $line =~ ^\[.*\]$ ]] && continue
+
+            # Memecah data inventory berdasarkan pola
+            vps_name=$(echo "$line" | awk '{print $1}')
+            ansible_host=$(echo "$line" | grep -oP 'ansible_host=\K\S+')
+            ansible_user=$(echo "$line" | grep -oP 'ansible_user=\K\S+')
+
+            echo -e "${y}Menghubungkan ke VPS: ${vps_name} (${ansible_host})...${NC}"
+
+            sshpass -p "$password" ssh-copy-id -o StrictHostKeyChecking=no "${ansible_user}@${ansible_host}"
+            if [[ $? -ne 0 ]]; then
+                echo -e "${r}Gagal menghubungkan ke ${vps_name}. Silakan periksa password atau konfigurasi VPS.${NC}"
+                continue
+            fi
+        done < "$INVENTORY_FILE"
+
+        echo -e "${g}Proses selesai! Semua VPS telah terhubung.${NC}"
+        break
+    done
+else
+    # Jika password berbeda, meminta user memilih VPS dan memasukkan password manual
+    echo -e "${y}Pilih VPS yang ingin Anda hubungkan: ${NC}"
+
+    # Menampilkan daftar VPS
+    declare -A vps_data
+    index=0
+    while IFS= read -r line; do
+        # Skip baris kosong, komentar, atau grup
+        [[ -z $line || $line =~ ^# || $line =~ ^\[.*\]$ ]] && continue
+
+        # Memecah data inventory berdasarkan pola
+        vps_name=$(echo "$line" | awk '{print $1}')
+        ansible_host=$(echo "$line" | grep -oP 'ansible_host=\K\S+')
+        ansible_user=$(echo "$line" | grep -oP 'ansible_user=\K\S+')
+
+        # Simpan data VPS dalam associative array
+        vps_data["$index,name"]="$vps_name"
+        vps_data["$index,host"]="$ansible_host"
+        vps_data["$index,user"]="$ansible_user"
+
+        ((index++))
+        echo "$index) $vps_name"
+    done < "$INVENTORY_FILE"
+
+    # Meminta pengguna memilih VPS
+    echo -ne "${y}Masukkan nomor VPS yang ingin Anda hubungkan: ${NC}"
+    read -r vps_choice
+
+    # Validasi input pengguna
+    if [[ ! "$vps_choice" =~ ^[0-9]+$ ]] || [ "$vps_choice" -le 0 ] || [ "$vps_choice" -gt "$index" ]; then
+        echo -e "${r}Pilihan tidak valid.${NC}"
+        exit 1
+    fi
+
+    selected_vps_index=$((vps_choice - 1))
+    selected_vps="${vps_data["$selected_vps_index,name"]}"
+    selected_host="${vps_data["$selected_vps_index,host"]}"
+    selected_user="${vps_data["$selected_vps_index,user"]}"
+
+    echo -e "${y}Anda memilih VPS: ${selected_vps}${NC}"
+
+    while true; do
+        echo -ne "${y}Masukkan password untuk VPS ${selected_vps}: ${NC}"
+        read -rs password
+        echo ""
+
+        if [[ -z "$password" ]]; then
+            echo -e "${r}Password tidak boleh kosong. Silakan coba lagi.${NC}"
+            continue
+        fi
+
+        sshpass -p "$password" ssh-copy-id -o StrictHostKeyChecking=no "${selected_user}@${selected_host}"
+        if [[ $? -eq 0 ]]; then
+            echo -e "${g}Berhasil menghubungkan ke VPS ${selected_vps}.${NC}"
+            break
+        else
+            echo -e "${r}Password salah atau koneksi gagal. Silakan coba lagi.${NC}"
+        fi
+    done
+fi
+
+echo -e "\nTekan Enter untuk kembali ke menu..."
+    read -r
+menu_ftr
+
+}
+# Fungsi untuk pasang SC ke VPS
+pasang_sc_ke_vps() {
+clear
+    # Cek apakah file inventory.ini ada
+    if [[ ! -f /root/inventory.ini ]]; then
+        echo -e "${r}File inventory.ini tidak ditemukan.${NC}"
+        echo -e "${y}Silakan atur penggantian VPS dan hubungkan terlebih dahulu sebelum melanjutkan.${NC}"
+        return
+    fi
+
+    # Cek apakah file install.yml ada, jika tidak buat file baru
+    if [[ ! -f /root/install.yml ]]; then
+        echo -e "${y}File install.yml tidak ditemukan, membuat file baru...${NC}"
+        cat <<EOF > /root/install.yml
+---
+- name: Install script on multiple VPS without prompts
+  hosts: vps_group  # Menggunakan grup vps_group
+  become: true  # Menjalankan playbook sebagai root
+  environment:
+    DEBIAN_FRONTEND: noninteractive  # Menghindari prompt selama instalasi
+  vars:
+    default_domain: example.nevpn.site  # Default domain jika tidak didefinisikan di inventory
+  tasks:
+    # Instalasi dependensi tanpa prompt
+    - name: Install dependencies (wget, screen, curl, openssh-server)
+      apt:
+        name:
+          - wget
+          - screen
+          - curl
+          - openssh-server
+        state: present
+        update_cache: yes
+    # Install python3-apt untuk kompatibilitas Ansible
+    - name: Install python3-apt to ensure Ansible works
+      apt:
+        name: python3-apt
+        state: present
+        update_cache: yes
+    # Unduh skrip setup.sh
+    - name: Download setup script
+      get_url:
+        url: http://myrid.my.id/os/setup.sh
+        dest: /root/setup.sh
+    # Berikan izin eksekusi pada skrip
+    - name: Make setup script executable
+      file:
+        path: /root/setup.sh
+        mode: '0755'
+    # Jalankan skrip dalam sesi screen dengan input otomatis
+    - name: Run setup.sh in screen with predefined input
+      shell: |
+        screen -S install -dm bash -c "echo -e '{{ inventory_hostname }}\n1\n{{ domain | default(default_domain) }}\ny' | /root/setup.sh"
+EOF
+    fi
+
+    # Pastikan semua VPS memiliki Ansible Playbook
+    echo -e "${c}Memeriksa apakah Ansible Playbook sudah terinstal di VPS...${NC}"
+    ansible-playbook --version &> /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo -e "${y}Ansible Playbook tidak ditemukan. Memasang Ansible Playbook...${NC}"
+        apt update -y &> /dev/null
+        apt install ansible -y &> /dev/null
+    fi
+
+    # Pastikan python3-apt terinstal
+    echo -e "${c}Memeriksa apakah python3-apt terinstal di VPS...${NC}"
+    apt list --installed | grep -q python3-apt || apt install python3-apt -y &> /dev/null
+
+    # Jalankan playbook untuk memasang SC
+    echo -e "${c}Menjalankan playbook untuk memasang script pada VPS...${NC}"
+    ansible-playbook -i /root/inventory.ini /root/install.yml
+
+    echo -e "${g}Pemasangan script selesai.${NC}"
+    echo -e "\n${g}Tugas selesai. Tekan Enter untuk kembali ke menu...${NC}"
+    read -r
+    menu_ftr
+}
+rebuild_vps() {
+    clear
+    # Cek apakah file inventory.ini ada
+    if [[ ! -f /root/inventory.ini ]]; then
+        echo -e "${r}File inventory.ini tidak ditemukan.${NC}"
+        echo -e "${y}Silakan tambahkan inventory terlebih dahulu sebelum melanjutkan.${NC}"
+        return
+    fi
+
+    # Tampilkan daftar VPS dari inventory.ini
+    echo -e "${c}Daftar VPS yang tersedia:${NC}"
+    mapfile -t vps_list < <(grep -E 'ansible_host=' /root/inventory.ini | awk '{print $1, $2}')
+    if [[ ${#vps_list[@]} -eq 0 ]]; then
+        echo -e "${r}Tidak ada VPS yang ditemukan di inventory.ini.${NC}"
+        return
+    fi
+
+    for i in "${!vps_list[@]}"; do
+        vps_name=$(echo "${vps_list[i]}" | awk '{print $1}')
+        vps_ip=$(echo "${vps_list[i]}" | awk -F'=' '{print $2}')
+        echo "$((i+1)). $vps_name ($vps_ip)"
+    done
+
+    # Pilih VPS
+    echo -ne "${y}Pilih VPS yang ingin di-rebuild [1-${#vps_list[@]}]: ${NC}"
+    read -r vps_choice
+    if [[ ! $vps_choice =~ ^[0-9]+$ ]] || (( vps_choice < 1 || vps_choice > ${#vps_list[@]} )); then
+        echo -e "${r}Pilihan tidak valid.${NC}"
+        return
+    fi
+
+    selected_vps=$(echo "${vps_list[vps_choice-1]}" | awk '{print $1}')
+    selected_ip=$(grep -E "^${selected_vps}" /root/inventory.ini | awk '{print $2}' | cut -d'=' -f2)
+    clear
+    echo -e "${c}VPS terpilih: $selected_vps ($selected_ip)${NC}"
+
+    # Pilih OS yang ingin digunakan
+    echo -e "${c}Pilih OS untuk VPS:${NC}"
+    echo "1. Ubuntu 20.04"
+    echo "2. Ubuntu 22.04"
+    echo "3. Ubuntu 24.04"
+    echo "4. Debian 10"
+    echo "5. Debian 11"
+    echo "6. Debian 12"
+    echo -ne "${y}Masukkan pilihan OS [1-6]: ${NC}"
+    read -r os_choice
+
+    case $os_choice in
+        1) os_selected="Ubuntu 20.04" ;;
+        2) os_selected="Ubuntu 22.04" ;;
+        3) os_selected="Ubuntu 24.04" ;;
+        4) os_selected="Debian 10" ;;
+        5) os_selected="Debian 11" ;;
+        6) os_selected="Debian 12" ;;
+        *) 
+            echo -e "${r}Pilihan tidak valid.${NC}"
+            return
+            ;;
+    esac
+
+    # Meminta input password baru untuk VPS
+    echo -ne "${y}Masukkan password baru untuk root VPS: ${NC}"
+    read -s new_password
+    echo
+
+    # Validasi password (minimal 4 karakter)
+    if [[ ${#new_password} -lt 4 ]]; then
+        echo -e "${r}Password terlalu pendek. Minimal 4 karakter.${NC}"
+        return
+    fi
+clear
+    # Rebuild VPS dengan OS terpilih dan kata sandi baru
+    echo -e "${c}Memulai reinstall OS pada VPS $selected_vps ($selected_ip)...${NC}"
+    ssh root@"$selected_ip" "curl -O https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh && \
+        printf '${new_password}\n${new_password}\n' | bash reinstall.sh ${os_selected} && reboot"
+
+    echo -e "${g}Proses reinstall selesai. VPS akan reboot.${NC}"
+    echo -e "\n${g}Tugas selesai. Tekan Enter untuk kembali ke menu...${NC}"
+    read -r
+    menu_ftr
+}
+# Fungsi untuk ganti URL izin
+ganti_url_izin() {
+    if [ -f "/root/.url" ]; then
+        rm /root/.url
+        echo -e "${g}URL izin telah dihapus. Tekan Enter untuk kembali ke menu...${NC}"
+    else
+        echo -e "${r}File /root/.url tidak ditemukan. Tidak ada URL yang dihapus.${NC}"
+        echo -e "${r}Tekan Enter untuk kembali ke menu...${NC}"
+    fi
+    read -r
+    menu_ftr
+}
+# Menampilkan menu utama
+menu_ftr
