@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Auto-install & auto-update me-cli Termux (apt only, langsung main.py)
+# Tambahan: Input password sebelum menjalankan dengan info kontak admin
+
+# --- PASSWORD SECTION ---
+CORRECT_PASS="PeyxDev"  # Ganti dengan password yang diinginkan
+
+read -sp "Masukkan password untuk memulai install: " INPUT_PASS
+echo
+if [ "$INPUT_PASS" != "$CORRECT_PASS" ]; then
+    echo -e "\033[1;31m[ERROR]\033[0m Password salah! Akses ditolak."
+    echo -e "\033[1;33m[INFO]\033[0m Jika ingin menggunakan fitur ini, hubungi admin via WA: 083151636921"
+    exit 1
+fi
+echo -e "\033[1;32m[SUCCESS]\033[0m Password benar! Memulai proses..."
+
+# --- FUNGSIONALITAS SCRIPT ---
+info() { echo -e "\033[1;34m[INFO]\033[0m $1"; }
+success() { echo -e "\033[1;32m[SUCCESS]\033[0m $1"; }
+error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; }
+
+progress_bar() {
+    local duration=$1
+    local message=$2
+    echo -ne "\033[1;33m[PROGRESS]\033[0m $message "
+    for ((i=0; i<duration; i++)); do
+        echo -ne "█"
+        sleep 0.05
+    done
+    echo
+}
+
+check() {
+    if [ $? -eq 0 ]; then
+        success "$1"
+    else
+        error "$2"
+        exit 1
+    fi
+}
+
+REPO_DIR="me-cli"
+
+# Jika folder sudah ada, update repository dan jalankan main.py
+if [ -d "$REPO_DIR" ]; then
+    info "me-cli sudah terinstall. Mengecek update repository..."
+    cd "$REPO_DIR" || { error "Folder me-cli tidak ditemukan!"; exit 1; }
+    progress_bar 15 "Running git pull..."
+    git pull
+    check "Repository berhasil di-update!" "Gagal update repository!"
+    info "Menjalankan tools..."
+    python main.py
+    exit 0
+fi
+
+# Instalasi penuh jika folder belum ada
+info "Step 1: Updating & Upgrading Termux via apt..."
+progress_bar 20 "Updating..."
+apt update && apt upgrade -y
+check "Update & Upgrade selesai!" "Gagal update & upgrade!"
+
+info "Step 2: Install Git jika belum ada"
+progress_bar 10 "Checking Git..."
+if ! command -v git &> /dev/null; then
+    apt install git -y
+    check "Git berhasil diinstall!" "Gagal install Git!"
+else
+    success "Git sudah terinstall."
+fi
+
+info "Step 3: Install Python jika belum ada"
+progress_bar 10 "Checking Python..."
+if ! command -v python &> /dev/null; then
+    apt install python -y
+    check "Python berhasil diinstall!" "Gagal install Python!"
+else
+    success "Python sudah terinstall."
+fi
+
+info "Step 4: Clone repository me-cli"
+progress_bar 15 "Cloning..."
+git clone https://github.com/purplemashu/me-cli
+check "Repository berhasil di-clone!" "Gagal clone repository!"
+
+cd "$REPO_DIR" || { error "Folder me-cli tidak ditemukan!"; exit 1; }
+
+info "Step 5: Menjalankan setup.sh"
+progress_bar 15 "Running setup..."
+bash setup.sh
+check "Setup selesai!" "Setup gagal!"
+
+info "Step 6: Menjalankan tools"
+progress_bar 15 "Starting tools..."
+python main.py
+check "tools berjalan!" "Gagal menjalankan tools"
+
+success "🎉 Semua langkah selesai!"

@@ -1,0 +1,541 @@
+#!/bin/bash
+
+# Script Termux untuk manajemen DNS Cloudflare dengan tampilan modern
+# Pastikan sudah install dependencies: pkg install curl jq figlet
+
+# Konfigurasi
+CF_API_EMAIL=""  # Akan diisi melalui konfigurasi
+CF_API_KEY=""    # Akan diisi melalui konfigurasi
+ZONE_ID=""       # Akan diisi melalui konfigurasi
+CONFIG_FILE="cf.cfg"
+
+# Warna
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Fungsi untuk validasi IPv4
+validate_ipv4() {
+    local ip=$1
+    local stat=1
+    
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    return $stat
+}
+
+# Fungsi untuk memeriksa dependensi
+check_dependencies() {
+    if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null || ! command -v figlet &> /dev/null; then
+        echo -e "${RED}✗ Error: Dependencies tidak terpenuhi${NC}"
+        echo -e "${YELLOW}Silakan install dengan perintah:${NC}"
+        echo -e "${CYAN}pkg install curl jq figlet${NC}"
+        exit 1
+    fi
+}
+
+# Fungsi untuk memuat konfigurasi
+load_config() {
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        echo -e "${GREEN}✓ Konfigurasi berhasil dimuat dari $CONFIG_FILE${NC}"
+        sleep 1
+    else
+        echo -e "${YELLOW}⚠ File konfigurasi tidak ditemukan. Membuat yang baru...${NC}"
+        echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+        echo -e "${MAGENTA}Informasi yang diperlukan:${NC}"
+        echo -e "${CYAN}• Email: Email akun Cloudflare Anda${NC}"
+        echo -e "${CYAN}• API Key: Dapat dari Cloudflare Dashboard → My Profile → API Tokens${NC}"
+        echo -e "${CYAN}• Zone ID: Dapat dari Cloudflare Dashboard → domain Anda → Overview${NC}"
+        echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+        
+        read -p "$(echo -e "${YELLOW}📧 Masukkan Email Cloudflare: ${NC}")" CF_API_EMAIL
+        read -p "$(echo -e "${YELLOW}🔑 Masukkan API Key Cloudflare: ${NC}")" CF_API_KEY
+        read -p "$(echo -e "${YELLOW}🌐 Masukkan Zone ID: ${NC}")" ZONE_ID
+        
+        echo "CF_API_EMAIL=\"$CF_API_EMAIL\"" > "$CONFIG_FILE"
+        echo "CF_API_KEY=\"$CF_API_KEY\"" >> "$CONFIG_FILE"
+        echo "ZONE_ID=\"$ZONE_ID\"" >> "$CONFIG_FILE"
+        
+        echo -e "${GREEN}✓ Konfigurasi berhasil disimpan ke $CONFIG_FILE${NC}"
+        sleep 2
+    fi
+}
+
+# Fungsi untuk menampilkan header
+show_header() {
+    clear
+    echo -e "${BLUE}╔══════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║${NC}${CYAN}           _  _ ___ _  _  _   _ _  _ _____        ${NC}${BLUE}║${NC}"
+    echo -e "${BLUE}║${NC}${CYAN}          | || | __| \| || | | | \| |_   _|       ${NC}${BLUE}║${NC}"
+    echo -e "${BLUE}║${NC}${CYAN}          | __ | _|| .\` || |_| | .\` | | |         ${NC}${BLUE}║${NC}"
+    echo -e "${BLUE}║${NC}${CYAN}          |_||_|___|_|\_| \___/|_|\_| |_|         ${NC}${BLUE}║${NC}"
+    echo -e "${BLUE}║${NC}${YELLOW}             Manajemen DNS Cloudflare             ${NC}${BLUE}║${NC}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════╝${NC}"
+    echo
+}
+
+# Fungsi untuk menampilkan menu utama
+show_menu() {
+    show_header
+    echo -e "${MAGENTA}📋 MENU UTAMA:${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo -e "${GREEN}1. 📋 List DNS Records${NC}"
+    echo -e "${GREEN}2. ➕ Tambah DNS Record${NC}"
+    echo -e "${GREEN}3. ✏️  Edit DNS Record${NC}"
+    echo -e "${GREEN}4. 🗑️  Hapus DNS Record${NC}"
+    echo -e "${GREEN}5. ⚙️  Perbarui Konfigurasi${NC}"
+    echo -e "${GREEN}6. 🚪 Keluar${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    
+    while true; do
+        read -p "$(echo -e "${YELLOW}🎯 Pilih menu [1-6]: ${NC}")" menu_choice
+        
+        case $menu_choice in
+            1|2|3|4|5|6) break ;;
+            *) echo -e "${RED}✗ Pilihan tidak valid. Silakan pilih 1-6.${NC}" ;;
+        esac
+    done
+}
+
+# Fungsi untuk menampilkan semua DNS records
+list_records() {
+    show_header
+    echo -e "${YELLOW}⏳ Mengambil daftar DNS records...${NC}"
+    echo
+    
+    response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+        -H "X-Auth-Email: $CF_API_EMAIL" \
+        -H "X-Auth-Key: $CF_API_KEY" \
+        -H "Content-Type: application/json")
+    
+    if echo "$response" | jq -e '.success' > /dev/null; then
+        echo -e "${GREEN}✓ Berhasil mendapatkan records:${NC}"
+        echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+        printf "${BLUE}║${NC} %-20s %-8s %-20s %-20s %-6s %-8s ${BLUE}║${NC}\n" "ID" "TYPE" "NAME" "CONTENT" "TTL" "PROXIED"
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+        
+        echo "$response" | jq -r '.result[] | [.id, .type, .name, .content, .ttl, .proxied] | @tsv' | \
+        while IFS=$'\t' read -r id type name content ttl proxied; do
+            printf "${BLUE}║${NC} %-20s %-8s %-20s %-20s %-6s %-8s ${BLUE}║${NC}\n" \
+                   "${id:0:20}" "$type" "${name:0:20}" "${content:0:20}" "$ttl" "$proxied"
+        done
+        
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    else
+        echo -e "${RED}✗ Gagal mendapatkan records:${NC}"
+        echo "$response" | jq -r '.errors[0].message'
+    fi
+    
+    echo
+    read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+}
+
+# Fungsi untuk menambahkan DNS record
+add_record() {
+    show_header
+    echo -e "${YELLOW}➕ Menambahkan DNS Record Baru${NC}"
+    echo
+    echo -e "${CYAN}📝 Contoh format:${NC}"
+    echo -e "${MAGENTA}• A record:${NC}    nama=subdomain, type=A, content=192.168.1.1"
+    echo -e "${MAGENTA}• CNAME record:${NC} nama=www, type=CNAME, content=example.com"
+    echo -e "${MAGENTA}• TXT record:${NC}   nama=@, type=TXT, content=\"v=spf1 include:_spf.example.com ~all\""
+    echo -e "${MAGENTA}• MX record:${NC}    nama=@, type=MX, content=mail.example.com, priority=10"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    
+    read -p "$(echo -e "${YELLOW}🌐 Nama Record (contoh: subdomain.example.com): ${NC}")" record_name
+    read -p "$(echo -e "${YELLOW}🔧 Tipe Record (A/AAAA/CNAME/MX/TXT/NS/SRV/etc): ${NC}")" record_type
+    record_type=$(echo "$record_type" | tr '[:lower:]' '[:upper:]')
+    
+    # Validasi konten berdasarkan tipe record
+    while true; do
+        echo -e "${CYAN}📋 Konten Record:${NC}"
+        echo -e "${MAGENTA}• A:${NC}     alamat IPv4 (contoh: 192.168.1.1)"
+        echo -e "${MAGENTA}• AAAA:${NC}  alamat IPv6 (contoh: 2001:db8::1)"
+        echo -e "${MAGENTA}• CNAME:${NC} domain target (contoh: example.com)"
+        echo -e "${MAGENTA}• TXT:${NC}   teks bebas"
+        echo -e "${MAGENTA}• MX:${NC}    server mail (contoh: mail.example.com) + priority"
+        read -p "$(echo -e "${YELLOW}📝 Konten Record: ${NC}")" record_content
+        
+        case $record_type in
+            "A")
+                if validate_ipv4 "$record_content"; then
+                    break
+                else
+                    echo -e "${RED}✗ Error: Konten untuk record A harus berupa alamat IPv4 yang valid${NC}"
+                    echo -e "${YELLOW}💡 Contoh: 192.168.1.1 (setiap angka harus antara 0-255)${NC}"
+                fi
+                ;;
+            "AAAA")
+                if [[ "$record_content" =~ : ]]; then
+                    break
+                else
+                    echo -e "${RED}✗ Error: Konten untuk record AAAA harus berupa alamat IPv6${NC}"
+                    echo -e "${YELLOW}💡 Contoh: 2001:0db8:85a3:0000:0000:8a2e:0370:7334${NC}"
+                fi
+                ;;
+            "CNAME"|"MX"|"TXT"|"NS"|"SRV")
+                break
+                ;;
+            *)
+                echo -e "${YELLOW}⚠ Warning: Tipe record $record_type tidak divalidasi khusus${NC}"
+                break
+                ;;
+        esac
+    done
+    
+    # Handle priority untuk MX records
+    priority=""
+    if [[ "$record_type" == "MX" ]]; then
+        read -p "$(echo -e "${YELLOW}🔢 Priority (angka, default 10): ${NC}")" priority
+        priority=${priority:-10}
+    fi
+    
+    read -p "$(echo -e "${YELLOW}⏱️  TTL (1 = auto, 120 = 2 menit, 300 = 5 menit, 600 = 10 menit): ${NC}")" record_ttl
+    record_ttl=${record_ttl:-1}
+    
+    if [[ ! "$record_ttl" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}✗ TTL harus angka. Menggunakan nilai default 1 (auto).${NC}"
+        record_ttl=1
+    fi
+    
+    record_proxied="false"
+    if [[ "$record_type" == "A" || "$record_type" == "AAAA" || "$record_type" == "CNAME" ]]; then
+        read -p "$(echo -e "${YELLOW}🛡️  Proxied melalui Cloudflare (y/n, default n): ${NC}")" proxied_choice
+        if [[ "$proxied_choice" =~ ^[Yy]$ ]]; then
+            record_proxied="true"
+        fi
+    fi
+    
+    echo
+    echo -e "${CYAN}✅ KONFIRMASI:${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo -e "${GREEN}• Nama:${NC}    $record_name"
+    echo -e "${GREEN}• Tipe:${NC}    $record_type"
+    echo -e "${GREEN}• Konten:${NC}  $record_content"
+    if [[ "$record_type" == "MX" ]]; then
+        echo -e "${GREEN}• Priority:${NC} $priority"
+    fi
+    echo -e "${GREEN}• TTL:${NC}     $record_ttl"
+    echo -e "${GREEN}• Proxied:${NC} $record_proxied"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo
+    
+    while true; do
+        read -p "$(echo -e "${YELLOW}❓ Tambahkan record ini? (y/n): ${NC}")" confirm
+        case $confirm in
+            [Yy]* )
+                data_payload="{\"type\":\"$record_type\",\"name\":\"$record_name\",\"content\":\"$record_content\",\"ttl\":$record_ttl,\"proxied\":$record_proxied"
+                
+                if [[ "$record_type" == "MX" ]]; then
+                    data_payload="$data_payload,\"priority\":$priority"
+                fi
+                
+                data_payload="$data_payload}"
+                
+                response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+                    -H "X-Auth-Email: $CF_API_EMAIL" \
+                    -H "X-Auth-Key: $CF_API_KEY" \
+                    -H "Content-Type: application/json" \
+                    --data "$data_payload")
+                
+                if echo "$response" | jq -e '.success' > /dev/null; then
+                    echo -e "${GREEN}✓ Record berhasil ditambahkan!${NC}"
+                    echo -e "${CYAN}• ID Record:${NC} $(echo "$response" | jq -r '.result.id')"
+                else
+                    echo -e "${RED}✗ Gagal menambahkan record:${NC}"
+                    echo "$response" | jq -r '.errors[0].message'
+                fi
+                break
+                ;;
+            [Nn]* )
+                echo -e "${YELLOW}⚠ Penambahan record dibatalkan.${NC}"
+                break
+                ;;
+            * )
+                echo -e "${RED}✗ Silakan jawab y atau n.${NC}"
+                ;;
+        esac
+    done
+    
+    echo
+    read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+}
+
+# Fungsi untuk mengedit DNS record
+edit_record() {
+    show_header
+    echo -e "${YELLOW}✏️  Mengedit DNS Record${NC}"
+    echo
+    
+    read -p "$(echo -e "${YELLOW}🔍 Masukkan ID Record yang akan diedit: ${NC}")" record_id
+    
+    if [ -z "$record_id" ]; then
+        echo -e "${RED}✗ Error: ID Record tidak boleh kosong${NC}"
+        read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+        return
+    fi
+    
+    echo -e "${YELLOW}⏳ Mengambil data record saat ini...${NC}"
+    
+    current_record=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$record_id" \
+        -H "X-Auth-Email: $CF_API_EMAIL" \
+        -H "X-Auth-Key: $CF_API_KEY" \
+        -H "Content-Type: application/json")
+    
+    if ! echo "$current_record" | jq -e '.success' > /dev/null; then
+        echo -e "${RED}✗ Gagal mendapatkan record:${NC}"
+        echo "$current_record" | jq -r '.errors[0].message'
+        read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+        return
+    fi
+    
+    current_name=$(echo "$current_record" | jq -r '.result.name')
+    current_type=$(echo "$current_record" | jq -r '.result.type')
+    current_content=$(echo "$current_record" | jq -r '.result.content')
+    current_ttl=$(echo "$current_record" | jq -r '.result.ttl')
+    current_proxied=$(echo "$current_record" | jq -r '.result.proxied')
+    current_priority=$(echo "$current_record" | jq -r '.result.priority // ""')
+    
+    echo
+    echo -e "${CYAN}📊 DATA SAAT INI:${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo -e "${GREEN}1. Nama:${NC}    $current_name"
+    echo -e "${GREEN}2. Tipe:${NC}    $current_type"
+    echo -e "${GREEN}3. Konten:${NC}  $current_content"
+    if [[ -n "$current_priority" ]]; then
+        echo -e "${GREEN}4. Priority:${NC} $current_priority"
+    fi
+    echo -e "${GREEN}5. TTL:${NC}     $current_ttl"
+    echo -e "${GREEN}6. Proxied:${NC} $current_proxied"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo
+    
+    read -p "$(echo -e "${YELLOW}🎯 Masukkan nomor field yang ingin diubah (1-6, atau 0 untuk batal): ${NC}")" field_num
+    
+    case $field_num in
+        1) read -p "$(echo -e "${YELLOW}📝 Nama Baru: ${NC}")" new_value; field_name="name";;
+        2) 
+            read -p "$(echo -e "${YELLOW}📝 Tipe Baru: ${NC}")" new_value
+            new_value=$(echo "$new_value" | tr '[:lower:]' '[:upper:]')
+            field_name="type"
+            ;;
+        3) 
+            read -p "$(echo -e "${YELLOW}📝 Konten Baru: ${NC}")" new_value
+            field_name="content"
+            
+            current_type_temp=$current_type
+            if [ "$field_num" = "2" ]; then
+                current_type_temp=$new_value
+            fi
+            
+            case $current_type_temp in
+                "A")
+                    if ! validate_ipv4 "$new_value"; then
+                        echo -e "${RED}✗ Error: Konten untuk record A harus berupa alamat IPv4 yang valid${NC}"
+                        read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+                        return
+                    fi
+                    ;;
+                "AAAA")
+                    if [[ ! "$new_value" =~ : ]]; then
+                        echo -e "${RED}✗ Error: Konten untuk record AAAA harus berupa alamat IPv6${NC}"
+                        read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+                        return
+                    fi
+                    ;;
+            esac
+            ;;
+        4) 
+            if [[ -n "$current_priority" ]]; then
+                read -p "$(echo -e "${YELLOW}📝 Priority Baru: ${NC}")" new_value
+                field_name="priority"
+            else
+                echo -e "${RED}✗ Field priority tidak tersedia untuk record ini${NC}"
+                return
+            fi
+            ;;
+        5) read -p "$(echo -e "${YELLOW}📝 TTL Baru: ${NC}")" new_value; field_name="ttl";;
+        6) read -p "$(echo -e "${YELLOW}📝 Proxied Baru (true/false): ${NC}")" new_value; field_name="proxied";;
+        0) echo -e "${YELLOW}⚠ Pengeditan dibatalkan.${NC}"; return;;
+        *) echo -e "${RED}✗ Pilihan tidak valid.${NC}"; return;;
+    esac
+    
+    payload=$(echo "$current_record" | jq --arg field "$field_name" --arg value "$new_value" '.result | .[$field] = $value | del(.id, .zone_id, .zone_name, .created_on, .modified_on, .meta)')
+    
+    echo
+    echo -e "${CYAN}✅ KONFIRMASI PERUBAHAN:${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo -e "${GREEN}• Field:${NC}   $field_name"
+    echo -e "${GREEN}• Nilai Baru:${NC} $new_value"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo
+    
+    while true; do
+        read -p "$(echo -e "${YELLOW}❓ Simpan perubahan? (y/n): ${NC}")" confirm
+        case $confirm in
+            [Yy]* )
+                response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$record_id" \
+                    -H "X-Auth-Email: $CF_API_EMAIL" \
+                    -H "X-Auth-Key: $CF_API_KEY" \
+                    -H "Content-Type: application/json" \
+                    --data "$payload")
+                
+                if echo "$response" | jq -e '.success' > /dev/null; then
+                    echo -e "${GREEN}✓ Record berhasil diperbarui!${NC}"
+                else
+                    echo -e "${RED}✗ Gagal memperbarui record:${NC}"
+                    echo "$response" | jq -r '.errors[0].message'
+                fi
+                break
+                ;;
+            [Nn]* )
+                echo -e "${YELLOW}⚠ Perubahan dibatalkan.${NC}"
+                break
+                ;;
+            * )
+                echo -e "${RED}✗ Silakan jawab y atau n.${NC}"
+                ;;
+        esac
+    done
+    
+    echo
+    read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+}
+
+# Fungsi untuk menghapus DNS record
+delete_record() {
+    show_header
+    echo -e "${YELLOW}🗑️  Menghapus DNS Record${NC}"
+    echo
+    
+    read -p "$(echo -e "${YELLOW}🔍 Masukkan ID Record yang akan dihapus: ${NC}")" record_id
+    
+    if [ -z "$record_id" ]; then
+        echo -e "${RED}✗ Error: ID Record tidak boleh kosong${NC}"
+        read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+        return
+    fi
+    
+    echo -e "${YELLOW}⏳ Mengambil data record...${NC}"
+    
+    response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$record_id" \
+        -H "X-Auth-Email: $CF_API_EMAIL" \
+        -H "X-Auth-Key: $CF_API_KEY" \
+        -H "Content-Type: application/json")
+    
+    if ! echo "$response" | jq -e '.success' > /dev/null; then
+        echo -e "${RED}✗ Gagal mendapatkan record:${NC}"
+        echo "$response" | jq -r '.errors[0].message'
+        read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+        return
+    fi
+    
+    record_name=$(echo "$response" | jq -r '.result.name')
+    record_type=$(echo "$response" | jq -r '.result.type')
+    record_content=$(echo "$response" | jq -r '.result.content')
+    
+    echo
+    echo -e "${RED}⚠ PERINGATAN: Anda akan menghapus record berikut:${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo -e "${GREEN}• Nama:${NC}    $record_name"
+    echo -e "${GREEN}• Tipe:${NC}    $record_type"
+    echo -e "${GREEN}• Konten:${NC}  $record_content"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo
+    
+    while true; do
+        read -p "$(echo -e "${RED}❓ Apakah Anda yakin ingin menghapus record ini? (y/n): ${NC}")" confirm
+        case $confirm in
+            [Yy]* )
+                delete_response=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$record_id" \
+                    -H "X-Auth-Email: $CF_API_EMAIL" \
+                    -H "X-Auth-Key: $CF_API_KEY" \
+                    -H "Content-Type: application/json")
+                
+                if echo "$delete_response" | jq -e '.success' > /dev/null; then
+                    echo -e "${GREEN}✓ Record berhasil dihapus!${NC}"
+                else
+                    echo -e "${RED}✗ Gagal menghapus record:${NC}"
+                    echo "$delete_response" | jq -r '.errors[0].message'
+                fi
+                break
+                ;;
+            [Nn]* )
+                echo -e "${YELLOW}⚠ Penghapusan dibatalkan.${NC}"
+                break
+                ;;
+            * )
+                echo -e "${RED}✗ Silakan jawab y atau n.${NC}"
+                ;;
+        esac
+    done
+    
+    echo
+    read -p "$(echo -e "${YELLOW}⏎ Tekan Enter untuk kembali ke menu...${NC}")" -n1 -s
+}
+
+# Fungsi untuk memperbarui konfigurasi
+update_config() {
+    show_header
+    echo -e "${YELLOW}⚙️  Memperbarui Konfigurasi${NC}"
+    echo
+    
+    echo -e "${CYAN}📊 KONFIGURASI SAAT INI:${NC}"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo -e "${GREEN}1. Email:${NC}    $CF_API_EMAIL"
+    echo -e "${GREEN}2. API Key:${NC}  ${CF_API_KEY:0:4}...${CF_API_KEY: -4}"
+    echo -e "${GREEN}3. Zone ID:${NC}  $ZONE_ID"
+    echo -e "${CYAN}▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${NC}"
+    echo
+    
+    read -p "$(echo -e "${YELLOW}🎯 Masukkan nomor field yang ingin diubah (1-3, atau 0 untuk batal): ${NC}")" field_num
+    
+    case $field_num in
+        1) read -p "$(echo -e "${YELLOW}📧 Email Baru: ${NC}")" CF_API_EMAIL;;
+        2) read -p "$(echo -e "${YELLOW}🔑 API Key Baru: ${NC}")" CF_API_KEY;;
+        3) read -p "$(echo -e "${YELLOW}🌐 Zone ID Baru: ${NC}")" ZONE_ID;;
+        0) echo -e "${YELLOW}⚠ Pembaruan dibatalkan.${NC}"; return;;
+        *) echo -e "${RED}✗ Pilihan tidak valid.${NC}"; return;;
+    esac
+    
+    echo "CF_API_EMAIL=\"$CF_API_EMAIL\"" > "$CONFIG_FILE"
+    echo "CF_API_KEY=\"$CF_API_KEY\"" >> "$CONFIG_FILE"
+    echo "ZONE_ID=\"$ZONE_ID\"" >> "$CONFIG_FILE"
+    
+    echo -e "${GREEN}✓ Konfigurasi berhasil diperbarui!${NC}"
+    sleep 2
+}
+
+# Main program
+check_dependencies
+load_config
+
+while true; do
+    show_menu
+    
+    case $menu_choice in
+        1) list_records;;
+        2) add_record;;
+        3) edit_record;;
+        4) delete_record;;
+        5) update_config;;
+        6) 
+            echo
+            echo -e "${GREEN}👋 Terima kasih telah menggunakan script ini!${NC}"
+            echo -e "${CYAN}✨ Sampai jumpa lagi!${NC}"
+            echo
+            exit 0
+            ;;
+    esac
+done

@@ -1,0 +1,177 @@
+PERMISSION() {
+MYIP=$(curl -sS ipv4.icanhazip.com)
+TODAY_DATE=$(date +'%Y-%m-%d')
+AUTHORIZED_ENTRY=$(curl -sS https://raw.githubusercontent.com/rifg67/script-rifts//main/ipx | grep -w "$MYIP" | head -1)
+if [[ -n "$AUTHORIZED_ENTRY" ]]; then
+IP_FROM_ENTRY=$(echo "$AUTHORIZED_ENTRY" | awk '{print $4}')
+EXP_DATE_OR_LIFETIME_STATUS=$(echo "$AUTHORIZED_ENTRY" | awk '{print $3}')
+if [ "$MYIP" = "$IP_FROM_ENTRY" ]; then
+if [[ "$EXP_DATE_OR_LIFETIME_STATUS" == "lifetime" ]]; then
+echo -e "\033[1;92mPermission Accepted (Lifetime User)\033[0m"
+echo -e "\033[1;97mAkses Di Izinkan (Pengguna Lifetime)${NC}"
+elif [[ "$TODAY_DATE" < "$EXP_DATE_OR_LIFETIME_STATUS" ]]; then
+echo -e "\033[1;92mPermission Accepted\033[0m"
+echo -e "\033[1;97mAkses Di Izinkan${NC}"
+elif [[ "$TODAY_DATE" == "$EXP_DATE_OR_LIFETIME_STATUS" ]]; then
+echo -e "\033[1;93mPermission Accepted (Today is Expiry Date)\033[0m"
+echo -e "\033[1;97mAkses Di Izinkan (Hari Ini Kadaluarsa)${NC}"
+else
+echo -e "\033[1;91mPermission Denied (Expired)\033[0m"
+echo -e "\033[1;97mAkses Di Tolak (Kadaluarsa)${NC}"
+read -n 1 -s -r -p "Press [ Enter ] to Exit"
+exit 1
+fi
+else
+echo -e "\033[1;91mPermission Denied (IP Mismatch)\033[0m"
+echo -e "\033[1;97mAkses Di Tolak (IP Tidak Cocok)${NC}"
+read -n 1 -s -r -p "Press [ Enter ] to Exit"
+exit 1
+fi
+else
+echo -e "\033[1;91mPermission Denied (IP Not Found)\033[0m"
+echo -e "\033[1;97mAkses Di Tolak (IP Tidak Ditemukan)${NC}"
+read -n 1 -s -r -p "Press [ Enter ] to Exit"
+exit 1
+fi
+}
+PERMISSION
+clear
+greenBe="\033[5;32m"
+NS=$(cat /etc/xray/dns 2>/dev/null)
+PUB=$(cat /etc/slowdns/server.pub 2>/dev/null)
+domain=$(cat /etc/xray/domain 2>/dev/null)
+cd /etc/systemd/system/ 2>/dev/null
+rm -rf private.service 2>/dev/null
+cd
+grenbo="\e[92;1m"
+NC='\e[0m'
+cd /usr/bin
+rm -rf private bot 2>/dev/null
+rm -f private.* bot.* 2>/dev/null
+OS_ID=$(grep -oP '(?<=^ID=).+' /etc/os-release | tr -d '"')
+OS_VERSION=$(grep -oP '(?<=^VERSION_ID=).+' /etc/os-release | tr -d '"')
+OS_VERSION_CLEAN=${OS_VERSION//./}
+OS_MAJOR="${OS_VERSION_CLEAN:0:2}"  # Ambil dua digit pertama
+if [[ ("$OS_ID" == "debian" && "$OS_MAJOR" -ge 12 && "$OS_MAJOR" -le 99) || \
+("$OS_ID" == "ubuntu" && "$OS_MAJOR" -ge 24 && "$OS_MAJOR" -le 99) ]]; then
+echo -e "\033[1;33mOS Terdeteksi: $OS_ID $OS_VERSION, menggunakan Virtual Environment...\033[0m"
+apt update && apt install -y python3-venv python3-pip python3-full pipx p7zip-full
+python3 -m venv /opt/python-env
+source /opt/python-env/bin/activate
+/opt/python-env/bin/pip install --upgrade pip
+echo 'export PATH="/opt/python-env/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+PYTHON_EXEC="/opt/python-env/bin/python3"
+else
+echo -e "\033[1;33mOS Terdeteksi: $OS_ID $OS_VERSION, menggunakan Python bawaan...\033[0m"
+apt update && apt install -y neofetch python3 python3-pip git unzip dos2unix p7zip-full
+PYTHON_EXEC="/usr/bin/python3"
+fi
+apt update && apt install -y neofetch git unzip dos2unix
+cd /usr/bin
+wget https://raw.githubusercontent.com/rifg67/script-rifts//main/bot/bot.zip
+7z x bot.zip -p@Peyx23
+sudo dos2unix bot/*
+chmod +x bot/*
+mv bot/* /usr/bin
+rm -rf bot.zip
+clear
+wget https://raw.githubusercontent.com/rifg67/script-rifts//main/bot/private.zip
+7z x private.zip -p@Peyx23
+cd /usr/bin/private
+if [ -f "requirements.txt" ]; then
+if [[ -d "/opt/python-env" ]]; then
+/opt/python-env/bin/pip install -r requirements.txt
+else
+pip3 install --no-cache-dir telethon==1.24.0 requests==2.25.1
+pip3 install -r requirements.txt
+fi
+else
+echo "requirements.txt tidak ditemukan di /usr/bin/private"
+return
+fi
+clear
+apt install speedtest-cli
+clear
+figlet "PEYX" | lolcat
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+echo -e "\033[1;93mADD BOT PRIVATE\033[0m"
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+read -e -p "Bot Token   : " bottoken
+read -e -p "ID Telegram : " admin
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+echo -e BOT_TOKEN='"'$bottoken'"' >> /usr/bin/private/var.txt
+echo -e ADMIN='"'$admin'"' >> /usr/bin/private/var.txt
+echo -e DOMAIN='"'$domain'"' >> /usr/bin/private/var.txt
+echo -e PUB='"'$PUB'"' >> /usr/bin/private/var.txt
+echo -e HOST='"'$NS'"' >> /usr/bin/private/var.txt
+echo -e "#bot# $bottoken $admin" >/etc/bot/.bot.db
+clear
+cat > /etc/systemd/system/private.service << END
+[Unit]
+Description=Simple private - @private
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+[Service]
+WorkingDirectory=/usr/bin
+ExecStart=$PYTHON_EXEC -m private
+Restart=always
+RestartSec=10
+TimeoutStartSec=60
+[Install]
+WantedBy=multi-user.target
+END
+systemctl daemon-reload
+systemctl start private
+systemctl enable private
+systemctl restart private
+clear
+fun_bar() {
+CMD[0]="$1"
+CMD[1]="$2"
+(
+[[ -e $HOME/fim ]] && rm $HOME/fim
+${CMD[0]} -y >/dev/null 2>&1
+${CMD[1]} -y >/dev/null 2>&1
+touch $HOME/fim
+) >/dev/null 2>&1 &
+tput civis
+echo -ne "\033[0;33mPlease Wait Loading \033[1;37m- \033[0;33m["
+while true; do
+for ((i = 0; i < 15; i++)); do
+echo -ne "\033[0;32m#"
+sleep 0.1s
+done
+[[ -e $HOME/fim ]] && rm $HOME/fim && break
+echo -e "\033[0;33m]"
+sleep 1s
+tput cuu1
+tput dl1
+echo -ne "\033[0;33mPlease Wait Loading \033[1;37m- \033[0;33m["
+done
+echo -e "\033[0;33m]\033[1;37m -\033[1;32m OK !\033[1;37m"
+tput cnorm
+}
+clear
+cd /root
+rm -rf private.sh
+clear
+echo -e "\e[5;32mSuccessfully Installed Bot Private, type /start on your bot\e[0m"
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+echo -e "\033[1;93mBot Status: $(systemctl is-active private)\033[0m"
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+if systemctl is-active --quiet private; then
+echo -e "\033[1;92m✓ Service berjalan dengan baik\033[0m"
+else
+echo -e "\033[1;91m✗ Service bermasalah, cek logs dengan: journalctl -u private.service -f\033[0m"
+echo -e "\033[1;91m✗ Coba jalankan manual: $PYTHON_EXEC /usr/bin/private/__init__.py\033[0m"
+fi
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+echo -e "\033[1;93mUntuk restart bot: restart-private.sh\033[0m"
+echo -e "\033[1;93mUntuk cek status: systemctl status private\033[0m"
+echo -e "\033[1;93mUntuk cek logs: journalctl -u private.service -f\033[0m"
+echo -e "\033[1;97m──────────────────────────────────────\033[0m"
+sleep 2
+read -n 1 -s -r -p "Press [ Enter ] to return to menu"
+menu

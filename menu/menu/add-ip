@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Warna
+y='\033[1;93m'; g="\e[92;1m"; r="\033[1;31m"; NC='\e[0m'
+
+# Konfigurasi GitHub dan Telegram
+EMAIL="peyxdev@gmail.com"
+USER="PeyxDev"
+TOKEN="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"
+CHATID="7661292905"
+KEY="7916829256:AAHB-_Jv24fTQfR98HA6eNogR8zzYzChw6g"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+today=$(date +%Y-%m-%d)
+REPO_URL="https://$TOKEN@github.com/$USER/PeyxDev.git"
+
+# Cek & Install Dependensi
+for pkg in git curl; do
+  [[ ! -f /usr/bin/$pkg ]] && apt install $pkg -y &>/dev/null
+done
+
+# Animasi Loading
+loading() {
+  local pesan="$1"
+  echo -ne "${y}$pesan${NC}"
+  for i in {1..5}; do echo -ne "."; sleep 0.2; done
+  echo ""
+}
+
+# Kirim Notifikasi Telegram
+notify_telegram() {
+  local msg="$1"
+  curl -s --max-time 10 \
+    -d "chat_id=$CHATID&disable_web_page_preview=1&text=$msg&parse_mode=html" \
+    $URL >/dev/null
+}
+
+# Tambah IP
+clear
+echo -e "${y}=== Tambah IP VPS ===${NC}"
+read -p "Verifikasi Admin (Password): " pass
+[[ $pass != "peyx" ]] && echo -e "${r}Akses ditolak!${NC}" && exit 1
+
+loading "Mengunduh data repository"
+rm -rf /root/PeyxDev
+git clone -q $REPO_URL /root/PeyxDev
+cd /root/PeyxDev || exit
+
+read -p "IP Address       : " ipqu
+[[ -z "$ipqu" ]] && echo -e "${r}IP tidak boleh kosong!${NC}" && exit 1
+grep -q "$ipqu" ipx && echo -e "${r}IP sudah terdaftar!${NC}" && exit 1
+read -p "Username IP      : " name
+read -p "Masa aktif (hari): " exp
+
+exp2=$(date -d "$exp days" +%Y-%m-%d)
+echo "### $name $exp2 $ipqu" >> ipx
+
+git pull -q
+git add ipx && git commit -m "Add IP $ipqu" &>/dev/null
+git push -q origin main
+
+TEXT="
+<code>✅ IP VPS BERHASIL DITAMBAHKAN</code>
+<code>Username  : $name</code>
+<code>IP VPS    : $ipqu</code>
+<code>Tanggal   : $today</code>
+<code>Expired   : $exp2</code>"
+notify_telegram "$TEXT"
+
+echo -e "${g}SUKSES! IP $ipqu ditambahkan.${NC}"

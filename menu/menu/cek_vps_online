@@ -1,0 +1,126 @@
+#!/bin/bash
+clear
+# Warna untuk border tabel dan teks
+UK='\e[38;5;99m'         # Ungu untuk border tabel
+COLOR_WHITE_BOLD="\033[1;37m"  # Warna putih tebal untuk teks
+COLOR_GREEN="\033[32m"   # Hijau untuk ONLINE
+COLOR_RED="\033[31m"     # Merah untuk OFFLINE
+COLOR_RED_BOLD="\033[1;31m"
+COLOR_BLUE="\033[34m"    # Biru untuk ACTIVE (untuk "actived")
+COLOR_RESET="\033[0m"    # Reset warna
+
+# File penyimpanan URL dan hasil offline
+URL_FILE="/root/.url"
+OFFLINE_FILE="/root/.vpsoffline"
+IP_LIST_FILE="ip_list.txt"
+
+# Penghitung status
+count_online=0
+count_offline=0
+
+# Fungsi untuk meminta URL jika file .url belum ada
+request_url() {
+    echo "File $URL_FILE tidak ditemukan."
+    echo "Masukkan path URL izin Anda (contoh: myPeyx/izinvps/ipx):"
+    read -rp "Input: " user_repo_path
+    echo "https://raw.githubusercontent.com/$user_repo_path" > "$URL_FILE"
+    echo "URL telah disimpan di $URL_FILE."
+}
+
+# Fungsi untuk menghitung sisa hari
+calculate_days_left() {
+    local expired_date="$1"
+    local current_date
+    current_date=$(date +%Y-%m-%d)
+    echo $(( ( $(date -d "$expired_date" +%s) - $(date -d "$current_date" +%s) ) / 86400 ))
+}
+
+# Fungsi untuk melakukan ping
+ping_vps() {
+    local ip="$1"
+    local name="$2"
+    local days_left="$3"
+    local status_sc="$4"
+    local status_sc_color="$5"
+    
+    # Format tabel dengan kolom tambahan IP setelah status
+    printf "${UK}| ${COLOR_WHITE_BOLD}%-15s${COLOR_RESET} ${UK}| ${COLOR_WHITE_BOLD}%-4s${COLOR_RESET} ${UK}| ${status_sc_color}%-0s${COLOR_RESET} ${UK}| ${COLOR_WHITE_BOLD}%-15s${COLOR_RESET} ${UK}| " "$name" "$days_left" "" "$ip"
+    
+    if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
+        echo -e "${COLOR_GREEN}ONLINE ${COLOR_RESET}${UK}|${COLOR_RESET}"
+        count_online=$((count_online + 1))
+    else
+        echo -e "${COLOR_RED}OFFLINE${COLOR_RESET}${UK}|${COLOR_RESET}"
+        echo "$ip $name $days_left $status_sc" >> "$OFFLINE_FILE"
+        count_offline=$((count_offline + 1))
+    fi
+}
+
+# Memeriksa keberadaan file .url
+if [ ! -f "$URL_FILE" ]; then
+    request_url
+fi
+
+# Membaca URL dari file .url
+IP_LIST_URL=$(<"$URL_FILE")
+
+# Ambil file daftar IP dari URL
+echo "Mengunduh daftar IP dari $IP_LIST_URL..."
+curl -s -o "$IP_LIST_FILE" "$IP_LIST_URL"
+
+# Periksa apakah file berhasil diunduh dan tidak kosong
+if [ ! -s "$IP_LIST_FILE" ]; then
+    echo "Gagal mengunduh daftar IP. Periksa URL atau koneksi internet Anda."
+    exit 1
+fi
+
+# Hapus file offline sebelumnya jika ada
+if [ -f "$OFFLINE_FILE" ]; then
+    > "$OFFLINE_FILE"
+fi
+
+# Tampilkan header tabel
+echo -e "${UK}\n┌───────────────────────────────────────────────────────────────┐${COLOR_RESET}"
+echo -e "${UK}| ${COLOR_WHITE_BOLD}Nama VPS        ${COLOR_RESET}${UK}| ${COLOR_WHITE_BOLD}Sisa ${COLOR_RESET}${UK}| ${COLOR_WHITE_BOLD}Status SC ${COLOR_RESET}${UK}| ${COLOR_WHITE_BOLD}IP Address      ${COLOR_RESET}${UK}| ${COLOR_WHITE_BOLD}Status ${COLOR_RESET}${UK}|${COLOR_RESET}"
+echo -e "${UK}|───────────────────────────────────────────────────────────────┤${COLOR_RESET}"
+
+# Membaca file dan memproses data
+while IFS= read -r line || [[ -n "$line" ]]; do
+    line=$(echo "$line" | tr -d '\r' | tr -d '\n' | tr -d '\t')
+    if [[ -z "$line" ]]; then
+        continue
+    fi
+    if [[ "$line" == "###"* ]]; then
+        name=$(echo "$line" | awk '{print $2}')
+        expired=$(echo "$line" | awk '{print $3}')
+        ip=$(echo "$line" | awk '{print $4}')
+        days_left=$(calculate_days_left "$expired")
+        
+        # Tentukan status SC dan warnanya
+        if (( days_left > 0 )); then
+            status_sc="ACTIVED"
+            status_sc_color="${COLOR_WHITE_BOLD} ACTIVED "
+        else
+            status_sc="EXPIRED"
+            status_sc_color="${COLOR_RED_BOLD} EXPIRED "
+        fi
+        
+        # Panggil fungsi ping
+        ping_vps "$ip" "$name" "$days_left" "$status_sc" "$status_sc_color"
+    fi
+done < "$IP_LIST_FILE"
+
+# Menampilkan footer tabel
+echo -e "${UK}└───────────────────────────────────────────────────────────────┘${COLOR_RESET}"
+
+# Menampilkan jumlah IP ONLINE dan OFFLINE
+echo -e "\nJumlah IP ONLINE: ${COLOR_GREEN}$count_online${COLOR_RESET}"
+echo -e "Jumlah IP OFFLINE: ${COLOR_RED}$count_offline${COLOR_RESET}"
+
+# Informasi file OFFLINE
+if [ -s "$OFFLINE_FILE" ]; then
+    echo -e "\nIP yang OFFLINE telah disimpan di: ${COLOR_WHITE_BOLD}$OFFLINE_FILE${COLOR_RESET}"
+else
+    echo -e "\nTidak ada IP yang OFFLINE. File $OFFLINE_FILE kosong."
+fi
+echo "Proses selesai."

