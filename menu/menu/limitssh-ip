@@ -1,0 +1,101 @@
+#!/bin/bash
+# //====================================================
+# //  Peyx Store - Copy 2025
+# //====================================================
+# //  System Request : DEB 9-12 / UBUNTU 18-24
+# //  Author         : Kurniawan Setiadi
+# //  Develop        : Newbie Store
+# //  email          : fa4573620@gmail.com
+# //  telegram       : t.me/frel01
+# //====================================================
+
+
+function send_log() {
+    CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+    KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+    TIME="10"
+    URL="https://api.telegram.org/bot$KEY/sendMessage"
+    TEXT="
+<code>────────────────────</code>
+<b>⚠️ NOTIFICATIONS MULTI LOGIN SSH⚠️</b>
+<code>────────────────────</code>
+<code>Username          : </code><code>$user</code>
+<code>Limit IP            : </code><code>${iplimit}</code>
+<code>User Login         : </code><code>${cekcek}</code>
+<code>Akun Locked       : </code><code>15 Menit</code>
+<code>────────────────────</code>
+"
+    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+}
+## mengambil login ssh
+
+systemctl reload ssh
+if [ -e "/var/log/auth.log" ]; then
+        LOG="/var/log/auth.log";
+fi
+if [ -e "/var/log/secure" ]; then
+        LOG="/var/log/secure.log";
+fi
+for file in /tmp/login.db /tmp/login-db.db /tmp/login-db-pid.db; do
+    [[ -e "$file" ]] && rm "$file"
+done
+data=( `ps aux | grep -i dropbear | awk '{print $2}'`);
+
+cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/login-db.db;
+for PID in "${data[@]}"
+do
+            cat /tmp/login-db.db | grep "dropbear\[$PID\]" > /tmp/login-db-pid.db;
+            NUM=`cat /tmp/login-db-pid.db | wc -l`;
+            USER=`cat /tmp/login-db-pid.db | awk -F"for " '{print $2}' | awk '{print $1}'`;
+            IP=`cat /tmp/login-db-pid.db | awk -F"for " '{print $2}' | awk '{print $3}'`;
+            if [ $NUM -eq 1 ]; then
+                    echo -e "$PID - $USER - $IP" >> /tmp/login.db;
+                    fi
+done
+
+
+cat $LOG | grep -i sshd | grep -i "Accepted password for" > /tmp/login-db.db
+data=( `ps aux | grep "\[priv\]" | sort -k 72 | awk '{print $2}'`);
+
+for PID in "${data[@]}"
+do
+            cat /tmp/login-db.db | grep "sshd\[$PID\]" > /tmp/login-db-pid.db;
+            NUM=`cat /tmp/login-db-pid.db | wc -l`;
+            USER=`cat /tmp/login-db-pid.db | awk -F"for " '{print $2}' | awk '{print $1}'`;
+            IP=`cat /tmp/login-db-pid.db | awk -F"for " '{print $2}' | awk '{print $3}'`;
+            if [ $NUM -eq 1 ]; then
+                    echo -e "$PID - $USER - $IP" >> /tmp/login.db;
+        fi
+done
+clear
+mulog="/tmp/login.db"
+date=$(date)
+data=( `ls /etc/kyt/limit/ssh/ip`)
+
+for user in "${data[@]}"
+do
+    iplimit=$(cat /etc/kyt/limit/ssh/ip/$user)
+    cekcek=$(cat $mulog | grep $user | wc -l)
+
+    if [[ $cekcek -gt $iplimit ]]; then
+        nais=3
+        passwd -l "$user" > /dev/null
+		pids=$(cat $mulog | grep $user | awk '{print $1}')
+
+        # Hentikan semua koneksi dengan PID terkait
+        for pid in $pids; do
+            kill -9 $pid
+			echo -e "$pid - $user" >> /root/log-lock.txt
+        done
+        send_log
+
+        # Jadwalkan untuk membuka kembali akun setelah 15 menit
+        echo "passwd -u $user" | at now + 15 minutes > /dev/null
+    else
+        echo > /dev/null
+    fi
+
+    sleep 0.1
+done
+
+echo > /dev/null
