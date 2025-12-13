@@ -5,7 +5,7 @@ DOMAIN_FILE="/etc/xray/domain"
 DOMAIN="$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")"
 IP_ADDRESS="$(hostname -I | awk '{print $1}')"
 # Mendapatkan file dari Github dan membaca URL yang ada di dalamnya
-data_ip_list="https://raw.githubusercontent.com/PeyxDev/neswc/main/ipx"
+data_ip_list="https://raw.githubusercontent.com/rifg67/script-rifts/main/ipx" 
 
 ipsaya=$(hostname -I | awk '{print $1}')
 data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
