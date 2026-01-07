@@ -11,48 +11,58 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 LIGHT='\033[0;37m'
 # ==========================================
-# Getting
+
 REPO="https://raw.githubusercontent.com/rifg67/script-rifts/main/"
-echo -e "
-"
+echo -e ""
 date
 echo ""
+
 cd
+# ✅ PERBAIKI: Logic condition domain
 if [[ -e /etc/xray/domain ]]; then
-domain=$(cat /etc/xray/domain)
+    domain=$(cat /etc/xray/domain)
 else
-domain=$(cat /etc/xray/domain) 
+    echo -e "[ ${RED}ERROR${NC} ] Domain file not found!"
+    exit 1
 fi
+
 sleep 0.1
 echo -e "[ ${green}INFO${NC} ] Checking... "
 apt install iptables iptables-persistent -y
 sleep 0.1
-echo -e "[ ${green}INFO$NC ] Setting ntpdate"
+
+# ✅ PERBAIKAN: INSTALL DAHULU SEBELUM MENJALANKAN
+echo -e "[ ${green}INFO${NC} ] Install time synchronization tools"
+apt install chrony ntpdate -y
+
+echo -e "[ ${green}INFO${NC} ] Setting ntpdate"
 ntpdate pool.ntp.org
 timedatectl set-ntp true
-sleep 0.1
-echo -e "[ ${green}INFO$NC ] Enable chrony"
+
+echo -e "[ ${green}INFO${NC} ] Enable chrony"
 systemctl enable chrony
 systemctl restart chrony
 timedatectl set-timezone Asia/Jakarta
+
 sleep 0.1
-echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
+echo -e "[ ${green}INFO${NC} ] Setting chrony tracking"
 chronyc sourcestats -v
 chronyc tracking -v
-echo -e "[ ${green}INFO$NC ] Setting dll"
+
+echo -e "[ ${green}INFO${NC} ] Setting dll"
 apt clean all && apt update
 apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release -y
-apt install socat cron bash-completion ntpdate -y
+apt install socat cron bash-completion -y
 ntpdate pool.ntp.org
-apt -y install chrony
 apt install zip -y
 apt install curl pwgen openssl cron -y
 
 # install xray
 sleep 0.1
-echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
+echo -e "[ ${green}INFO${NC} ] Downloading & Installing xray core"
 domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
 chown www-data.www-data $domainSock_dir
+
 # Make Folder XRay
 mkdir -p /var/log/xray
 mkdir -p /etc/xray
@@ -62,6 +72,7 @@ touch /var/log/xray/access.log
 touch /var/log/xray/error.log
 touch /var/log/xray/access2.log
 touch /var/log/xray/error2.log
+
 # / / Ambil Xray Core Version Terbaru
 latest_version="24.11.30"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version $latest_version
@@ -89,7 +100,6 @@ if ! grep -q 'ssl_renew.sh' /var/spool/cron/crontabs/root;then (crontab -l;echo 
 
 mkdir -p /home/vps/public_html
 
-# set uuid
 # set uuid
 uuid=$(cat /proc/sys/kernel/random/uuid)
 # xray config
@@ -348,7 +358,10 @@ cat > /etc/xray/config.json << END
 END
 rm -rf /etc/systemd/system/xray.service.d
 rm -rf /etc/systemd/system/xray@.service
+
+# ✅ PERBAIKI: Tambahkan [Unit] section
 cat <<EOF> /etc/systemd/system/xray.service
+[Unit]
 Description=Xray Service
 Documentation=https://github.com/xtls
 After=network.target nss-lookup.target
@@ -366,8 +379,8 @@ LimitNOFILE=1000000
 
 [Install]
 WantedBy=multi-user.target
-
 EOF
+
 cat > /etc/systemd/system/runn.service <<EOF
 [Unit]
 Description=casper9
@@ -386,14 +399,15 @@ EOF
 #nginx config
 wget -O /etc/nginx/conf.d/xray.conf "${REPO}install/xray.conf"
 wget -O /etc/haproxy/haproxy.cfg "${REPO}install/haproxy.cfg"
-sed -i 's/xxx/$domain/' /etc/nginx/conf.d/xray.conf
-sed -i 's/xxx/$domain/' /etc/haproxy/haproxy.cfg
+sed -i "s/xxx/${domain}/" /etc/nginx/conf.d/xray.conf
+sed -i "s/xxx/${domain}/" /etc/haproxy/haproxy.cfg
 cat /etc/xray/xray.key /etc/xray/xray.crt | tee /etc/haproxy/hap.pem
-echo -e "$yell[SERVICE]$NC Restart All service"
+
+# ✅ PERBAIKI: Hapus duplikasi daemon-reload
+echo -e "[ ${green}INFO${NC} ] Restart All service"
 systemctl daemon-reload
 sleep 0.1
-echo -e "[ ${green}ok${NC} ] Enable & restart xray "
-systemctl daemon-reload
+echo -e "[ ${green}OK${NC} ] Enable & restart xray"
 systemctl enable xray
 systemctl restart xray
 systemctl restart nginx

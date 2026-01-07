@@ -119,5 +119,5 @@ main() {
 
 # Eksekusi fungsi utama
 main
-wget https://raw.githubusercontent.com/PeyxDev/main/install/wild;chmod +x wild;bash wild
+wget https://raw.githubusercontent.com/rifg67/script-rifts/main/install/wild;chmod +x wild;bash wild
 rm -rf wild

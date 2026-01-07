@@ -43,7 +43,7 @@ checking_sc() {
         echo -e "     \033[0;33mBuy access permissions for scripts\033[0m"
         echo -e "             \033[0;33mContact Admin :\033[0m"
         echo -e "      \033[2;32mWhatsApp\033[0m wa.me/6283151636921"
-        echo -e "      \033[2;32mTelegram\033[0m t.me/frel01"
+        echo -e "      \033[2;32mTelegram\033[0m t.me/PeyxDev"
         echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
 cd
         {
