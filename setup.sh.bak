@@ -83,7 +83,7 @@ MYIP=$(curl -sS ipv4.icanhazip.com)
 if [[ ! -d /etc/github ]]; then
 mkdir -p /etc/github
 fi
-curl -s http://ansendant.web.id/token-rifts > /etc/github/api
+curl -s http://ansendant.web.id/token > /etc/github/apirifts
 curl -s http://ansendant.web.id/email > /etc/github/email
 curl -s http://ansendant.web.id/nama > /etc/github/username
 clear
