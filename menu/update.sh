@@ -33,7 +33,7 @@ echo -e " [INFO] Fetching server date..."
 dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 biji=$(date +"%Y-%m-%d" -d "$dateFromServer")
 REPO="https://raw.githubusercontent.com/rifg67/script-rifts/main/"
-pwadm="@Peyx23"
+pwadm="rifts"
 Username="peyx"
 Password="$pwadm"
 allowed_users=("root" "$Username")
