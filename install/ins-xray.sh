@@ -57,6 +57,11 @@ ntpdate pool.ntp.org
 apt install zip -y
 apt install curl pwgen openssl cron -y
 
+# ✅ FIX: install & enable atd, dibutuhkan supaya fitur auto-delete trial (ssh/vmess/vless/trojan) bisa jalan otomatis
+echo -e "[ ${green}INFO${NC} ] Install & enable atd for trial auto-delete feature"
+apt install at -y
+systemctl enable --now atd
+
 # install xray
 sleep 0.1
 echo -e "[ ${green}INFO${NC} ] Downloading & Installing xray core"
