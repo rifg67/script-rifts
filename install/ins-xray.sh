@@ -134,6 +134,7 @@ cat > /etc/xray/config.json << END
             "clients": [
                {
                  "id": "${uuid}"                 
+#vless
              }
           ]
        },
@@ -153,6 +154,7 @@ cat > /etc/xray/config.json << END
                {
                  "id": "${uuid}",
                  "alterId": 0
+#vmess
              }
           ]
        },
@@ -172,6 +174,7 @@ cat > /etc/xray/config.json << END
            "clients": [
               {
                  "password": "${uuid}"
+#trojanws
               }
           ],
          "udp": true
@@ -192,6 +195,7 @@ cat > /etc/xray/config.json << END
            {
            "method": "aes-128-gcm",
           "password": "${uuid}"
+#ssws
            }
           ],
           "network": "tcp,udp"
@@ -212,6 +216,7 @@ cat > /etc/xray/config.json << END
            "clients": [
              {
                "id": "${uuid}"
+#vlessgrpc
              }
           ]
        },
@@ -231,6 +236,7 @@ cat > /etc/xray/config.json << END
                {
                  "id": "${uuid}",
                  "alterId": 0
+#vmessgrpc
              }
           ]
        },
@@ -250,6 +256,7 @@ cat > /etc/xray/config.json << END
              "clients": [
                {
                  "password": "${uuid}"
+#trojangrpc
                }
            ]
         },
@@ -269,6 +276,7 @@ cat > /etc/xray/config.json << END
           {
              "method": "aes-128-gcm",
              "password": "${uuid}"
+#ssgrpc
            }
          ],
            "network": "tcp,udp"
