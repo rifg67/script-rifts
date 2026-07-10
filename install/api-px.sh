@@ -73,10 +73,9 @@ mkdir -p /etc/peyx/limit/vmess/ip
 mkdir -p /etc/peyx/limit/ssh/ip
 echo -e "${green}✅ Directories created${neutral}"
 
-# Copy server.js from local upload (SFTP), bukan download dari GitHub
-BASEDIR="${BASEDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-echo -e "${yellow}[4/7] Menyalin server.js dari lokal...${neutral}"
-cp -f "${BASEDIR}/api/server.js" /etc/peyx-api/server.js
+# Download server.js from repo
+echo -e "${yellow}[4/7] Downloading server.js from repo...${neutral}"
+curl -sL "https://raw.githubusercontent.com/rifg67/script-rifts/main/api/server.js" -o /etc/peyx-api/server.js
 
 if [ -f /etc/peyx-api/server.js ]; then
     echo -e "${green}✅ server.js downloaded successfully${neutral}"

@@ -119,6 +119,5 @@ main() {
 
 # Eksekusi fungsi utama
 main
-BASEDIR="${BASEDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-cp -f "${BASEDIR}/install/wild" wild; chmod +x wild; bash wild
+wget https://raw.githubusercontent.com/rifg67/script-rifts/main/install/wild;chmod +x wild;bash wild
 rm -rf wild
