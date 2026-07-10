@@ -1,5 +1,6 @@
 #!/bin/sh
-REPOS="http://raw.githubusercontent.com/rifg67/script-rifts/main/"
+BASEDIR="${BASEDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+REPOS="${BASEDIR}/"
 ns_domain_cloudflare() {
 	DOMAIN=$(cat /etc/xray/domain | cut -d "." -f2-4)
 	DOMAIN_PATH=$(cat /etc/xray/domain)
@@ -49,14 +50,14 @@ setup_dnstt() {
 	cd
 	mkdir -p /etc/slowdns
 	cd /etc/slowdns
-	wget -O dnstt-server "${REPOS}slowdns/dnstt-server" >/dev/null 2>&1
+	cp -f "${REPOS}slowdns/dnstt-server" dnstt-server >/dev/null 2>&1
 	chmod +x dnstt-server >/dev/null 2>&1
-	wget -O dnstt-client "${REPOS}slowdns/dnstt-client" >/dev/null 2>&1
+	cp -f "${REPOS}slowdns/dnstt-client" dnstt-client >/dev/null 2>&1
 	chmod +x dnstt-client >/dev/null 2>&1
 	./dnstt-server -gen-key -privkey-file server.key -pubkey-file server.pub
 	chmod +x *
-	wget -O /etc/systemd/system/client.service "${REPOS}slowdns/client" >/dev/null 2>&1
-	wget -O /etc/systemd/system/server.service "${REPOS}slowdns/server" >/dev/null 2>&1
+	cp -f "${REPOS}slowdns/client" /etc/systemd/system/client.service >/dev/null 2>&1
+	cp -f "${REPOS}slowdns/server" /etc/systemd/system/server.service >/dev/null 2>&1
 	sed -i "s/xxxx/$NS_DOMAIN/g" /etc/systemd/system/client.service 
 	sed -i "s/xxxx/$NS_DOMAIN/g" /etc/systemd/system/server.service 
 }
