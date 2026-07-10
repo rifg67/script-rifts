@@ -12,7 +12,27 @@ CYAN='\033[0;36m'
 LIGHT='\033[0;37m'
 # ==========================================
 
-REPO="https://raw.githubusercontent.com/rifg67/script-rifts/main/"
+# ================= Local-File Mode (anti 429) =================
+BASEDIR="${BASEDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+REPO="${BASEDIR}/"
+
+dl() {
+    local src="$1" out="$2"
+    if [[ "$src" == http://* || "$src" == https://* ]]; then
+        curl -sS -L -A "Mozilla/5.0" -o "$out" "$src"
+    else
+        if [ ! -f "$src" ]; then
+            echo "  ❌ File lokal gak ketemu: $src (pastikan sudah di-upload via SFTP ke $BASEDIR)"
+            return 1
+        fi
+        cp -f "$src" "$out"
+    fi
+    if [ ! -s "$out" ]; then
+        echo "  ❌ GAGAL nyalin $src ke $out (file kosong/gak ada)"
+        return 1
+    fi
+}
+# =================================================================
 echo -e ""
 date
 echo ""
@@ -402,8 +422,8 @@ WantedBy=multi-user.target
 EOF
 
 #nginx config
-wget -O /etc/nginx/conf.d/xray.conf "${REPO}install/xray.conf"
-wget -O /etc/haproxy/haproxy.cfg "${REPO}install/haproxy.cfg"
+dl "${REPO}install/xray.conf" /etc/nginx/conf.d/xray.conf
+dl "${REPO}install/haproxy.cfg" /etc/haproxy/haproxy.cfg
 sed -i "s/xxx/${domain}/" /etc/nginx/conf.d/xray.conf
 sed -i "s/xxx/${domain}/" /etc/haproxy/haproxy.cfg
 cat /etc/xray/xray.key /etc/xray/xray.crt | tee /etc/haproxy/hap.pem
