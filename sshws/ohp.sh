@@ -15,8 +15,7 @@ LIGHT='\033[0;37m'
 # Getting
 
 # Download File Ohp
- BASEDIR="${BASEDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
- cp -f "${BASEDIR}/sshws/ohpserver" /usr/local/bin/ohpserver
+ wget -O /usr/local/bin/ohpserver "https://raw.githubusercontent.com/rifg67/script-rifts/main/sshws/ohpserver"
  chmod +x /usr/local/bin/ohpserver
 # Installing Service
 # SSH OHP Port 8181
