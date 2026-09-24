@@ -367,7 +367,10 @@ wget -O /usr/bin/autocpu "${REPO2}" && chmod +x /usr/bin/autocpu
 cat >/etc/cron.d/xp_sc <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-		1 0 * * * root /usr/local/sbin/expsc
+		# 1 0 * * * root /usr/local/sbin/expsc  # DISABLED: script ini pernah nge-wipe haproxy.cfg/xray.conf
+		# saat IP belum/gak ketemu di ipx (dianggap "expired" secara keliru).
+		# Kalau mau tetep pakai fitur expiry-check, pasang versi expsc yang sudah
+		# diperbaiki (fail-safe, tidak menghapus config saat lookup gagal).
 	END
 cat >/etc/cron.d/logclean <<-END
 SHELL=/bin/sh
