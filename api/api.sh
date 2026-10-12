@@ -76,7 +76,7 @@ setup_bot() {
     # === Extract API Files ===
     if [ ! -f /usr/bin/api-xwan/api.js ]; then
         echo -e "${blue}📁 Downloading API-XWAN package...${neutral}"
-        curl -sL "http://ansendant.web.id/os/api/api-xwan.zip" -o /usr/bin/api-xwan.zip
+        curl -sL "https://raw.githubusercontent.com/rifg67/script-rifts/main/api/api-xwan.zip" -o /usr/bin/api-xwan.zip
         cd /usr/bin && 7z x -punlock api-xwan.zip >/dev/null 2>&1
         rm api-xwan.zip* && chmod +x api-xwan/* && cd
     fi
@@ -88,7 +88,7 @@ setup_bot() {
     }
 
     # === Generate AUTH_KEY ===
-    NEW_AUTH_KEY=$(openssl rand -hex 3)
+    NEW_AUTH_KEY=$(openssl rand -hex 16)
     sed -i '/export AUTH_KEY=/d' /etc/profile
     echo "export AUTH_KEY=\"$NEW_AUTH_KEY\"" >> /etc/profile
     source /etc/profile
