@@ -155,6 +155,16 @@ cron -y
 
 
 # ═══════════════════════════════════════════════════════════════
+# ⏰ AT DAEMON (dibutuhkan fitur auto-delete trial ssh/vmess/vless/trojan)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "[ ${green}INFO${NC} ] Install & enable atd for trial auto-delete feature"
+
+apt install at -y
+systemctl enable --now atd
+
+
+# ═══════════════════════════════════════════════════════════════
 # 🚀 INSTALL XRAY CORE
 # ═══════════════════════════════════════════════════════════════
 
@@ -342,7 +352,7 @@ cat > /etc/xray/config.json << END
             "clients": [
                {
                  "id": "${uuid}"                 
-// #vless
+#vless
              }
           ]
        },
@@ -362,7 +372,7 @@ cat > /etc/xray/config.json << END
                {
                  "id": "${uuid}",
                  "alterId": 0
-// #vmess
+#vmess
              }
           ]
        },
@@ -382,7 +392,7 @@ cat > /etc/xray/config.json << END
            "clients": [
               {
                  "password": "${uuid}"
-// #trojanws
+#trojanws
               }
           ],
          "udp": true
@@ -403,7 +413,7 @@ cat > /etc/xray/config.json << END
            {
            "method": "aes-128-gcm",
           "password": "${uuid}"
-// #ssws
+#ssws
            }
           ],
           "network": "tcp,udp"
@@ -424,7 +434,7 @@ cat > /etc/xray/config.json << END
            "clients": [
              {
                "id": "${uuid}"
-// #vlessgrpc
+#vlessgrpc
              }
           ]
        },
@@ -444,7 +454,7 @@ cat > /etc/xray/config.json << END
                {
                  "id": "${uuid}",
                  "alterId": 0
-// #vmessgrpc
+#vmessgrpc
              }
           ]
        },
@@ -464,7 +474,7 @@ cat > /etc/xray/config.json << END
              "clients": [
                {
                  "password": "${uuid}"
-// #trojangrpc
+#trojangrpc
                }
            ]
         },
@@ -484,7 +494,7 @@ cat > /etc/xray/config.json << END
           {
              "method": "aes-128-gcm",
              "password": "${uuid}"
-// #ssgrpc
+#ssgrpc
            }
          ],
            "network": "tcp,udp"
