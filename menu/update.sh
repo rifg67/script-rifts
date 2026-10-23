@@ -26,7 +26,7 @@ domain=$(cat /etc/xray/domain)
 MYIP=$(curl -sS ipv4.icanhazip.com)
 
 # Ganti ke repo GitHub lu sendiri (private + token kalau perlu)
-REPO="https://raw.githubusercontent.com/GANTI_USERNAME/GANTI_REPO/main/"
+REPO="https://github.com/rifg67/script-rifts/main/"
 
 # Password buat buka menu.zip (HARUS sama dengan password yang dipakai
 # saat nge-zip menu/ di repo lu). Ini cuma buat ekstraksi zip, bukan
