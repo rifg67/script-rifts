@@ -27,7 +27,7 @@ LIGHT='\033[0;37m'
 # 🌐 REPOSITORY
 # ═══════════════════════════════════════════════════════════════
 
-REPO="https://bsi.web.id/os/"
+REPO="https://raw.githubusercontent.com/rifg67/script-rifts/main/"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -511,7 +511,7 @@ cat > /etc/xray/config.json << END
     {
       "protocol": "freedom",
       "settings": {},
-      "tag": "api"
+      "tag": "direct"
     },
     {
       "protocol": "blackhole",
@@ -648,10 +648,10 @@ EOF
 # ═══════════════════════════════════════════════════════════════
 
 wget -O /etc/nginx/conf.d/xray.conf \
-"${REPO}install/xray.sh"
+"${REPO}install/xray.conf" || { echo "[ ERROR ] gagal download xray.conf"; exit 1; }
 
 wget -O /etc/haproxy/haproxy.cfg \
-"${REPO}install/haproxy.sh"
+"${REPO}install/haproxy.cfg" || { echo "[ ERROR ] gagal download haproxy.cfg"; exit 1; }
 
 sed -i "s/xxx/${domain}/" \
 /etc/nginx/conf.d/xray.conf
@@ -667,6 +667,16 @@ sed -i "s/xxx/${domain}/" \
 cat /etc/xray/xray.key \
 /etc/xray/xray.crt \
 | tee /etc/haproxy/hap.pem
+
+# Validasi config sebelum service di-restart (berhenti kalau rusak)
+if ! haproxy -c -f /etc/haproxy/haproxy.cfg; then
+  echo "[ ERROR ] /etc/haproxy/haproxy.cfg tidak valid, instalasi dihentikan"
+  exit 1
+fi
+if ! nginx -t; then
+  echo "[ ERROR ] konfigurasi nginx tidak valid, instalasi dihentikan"
+  exit 1
+fi
 
 
 # ═══════════════════════════════════════════════════════════════
