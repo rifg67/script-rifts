@@ -770,6 +770,18 @@ if [ -f /root/scdomain ];then
 fi
 
 
+# ──────────────────────────────────────────────
+# 🛡️  PASANG PENJAGA OTOMATIS (fix-restore)
+#     memperbaiki port ws/haproxy dan tag xray kalau berubah
+#     (misalnya setelah restore). Gagal download tidak menghentikan instalasi.
+# ──────────────────────────────────────────────
+
+if wget -q -O /root/fix-restore.sh "${REPO}install/fix-restore.sh"; then
+    bash /root/fix-restore.sh --install-auto > /dev/null 2>&1
+fi
+rm -f /root/fix-restore.sh
+
+
 # ═══════════════════════════════════════════════════════════════
 # 🏁 FINISH
 # ═══════════════════════════════════════════════════════════════
