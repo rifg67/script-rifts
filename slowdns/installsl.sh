@@ -32,6 +32,35 @@
 
 set -Eeuo pipefail
 
+LOG_FILE="/var/log/slowdns-install.log"
+
+# Jalankan ulang diri sendiri dengan output ke layar + log. Log tetap ada walau
+# layar di-clear oleh setup (res8 diakhiri "clear") atau disembunyikan fun_bar
+# (jalur Debian). Lihat: cat /var/log/slowdns-install.log
+# Jeda di akhir hanya kalau layar interaktif; matikan dengan SLOWDNS_NO_PAUSE=1.
+if [[ -z "${SLOWDNS_LOGGED:-}" && $EUID -eq 0 ]]; then
+    export SLOWDNS_LOGGED=1
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "===== $(date '+%F %T') installsl.sh $* =====" >> "$LOG_FILE"
+
+    set +e
+    bash "$0" "$@" 2>&1 | tee -a "$LOG_FILE"
+    rc="${PIPESTATUS[0]}"
+    set -e
+
+    if [[ -t 1 && -z "${SLOWDNS_NO_PAUSE:-}" ]]; then
+        echo
+        if (( rc != 0 )); then
+            echo "SLOWDNS GAGAL (kode $rc). Log lengkap: $LOG_FILE"
+            sleep 30
+        else
+            echo "Log instalasi: $LOG_FILE"
+            sleep 6
+        fi
+    fi
+    exit "$rc"
+fi
+
 # Sumber unduhan (dicoba berurutan). Isi REPO=... untuk memaksa satu sumber.
 if [[ -n "${REPO:-}" ]]; then
     REPOS=("$REPO")
