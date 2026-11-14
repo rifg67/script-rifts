@@ -29,16 +29,57 @@
 
 ---
 
-### INSTALL SCRIPT UBUNTU
-<pre><code>apt install -y screen && wget -q https://raw.githubusercontent.com/rifg67/script-rifts/main/setup.sh && chmod +x setup.sh && ./setup.sh
-</code></pre>
+### INSTALL SCRIPT (OTOMATIS, IPv4, JALAN DI LATAR BELAKANG)
+
+Isi **nama** dan **domain** seperti biasa (ditanya sekali di awal). Sesudah itu instalasi
+jalan sendiri tanpa enter lagi, dan **terminal boleh ditutup**.
+Download memakai `wget -4` (IPv4) dan IPv6 dimatikan otomatis.
+
+#### UBUNTU
+```bash
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y && apt-get install -y screen wget curl
+cd /root
+U=https://raw.githubusercontent.com/rifg67/script-rifts/main
+wget -4 -nv -O install.sh $U/install.sh
+wget -4 -nv -O setup.sh $U/setup.sh
+chmod +x install.sh setup.sh && ./install.sh
+```
+#### DEBIAN
+```bash
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y && apt-get install -y screen bsdextrautils util-linux coreutils wget curl
+cd /root
+U=https://raw.githubusercontent.com/rifg67/script-rifts/main
+wget -4 -nv -O install.sh $U/install.sh
+wget -4 -nv -O setup.sh $U/setup.sh
+chmod +x install.sh setup.sh && ./install.sh
+```
+Tambahan (boleh dilewati):
+- `./install.sh -r` : VPS reboot otomatis setelah instalasi selesai (kalau tidak, Anda ditanya di awal).
+- `./install.sh -n NAMA -d DOMAIN` atau `-n NAMA -s SUBDOMAIN` : isi nama/domain lewat perintah, tanpa ditanya.
+
+#### CEK PROGRES
+```bash
+./install.sh status     # status + 15 baris log terakhir
+./install.sh log        # ikuti log langsung (Ctrl+C untuk keluar)
+./install.sh attach     # buka layar instalasi (keluar: Ctrl+A lalu D)
+```
+Log lengkap ada di `/root/install-rifts.log`. Kalau sudah selesai, ketik `menu`.
 
 ---
 
-### INSTALL SCRIPT DEBIAN
-<pre><code>apt update && apt install -y screen bsdextrautils util-linux coreutils wget curl && wget -q https://raw.githubusercontent.com/rifg67/script-rifts/main/setup.sh && chmod +x setup.sh && ./setup.sh
+### MATIKAN IPv6 (MANUAL)
+`install.sh` dan `setup.sh` sudah melakukan ini otomatis. Kalau mau manual, atau untuk VPS yang sudah jalan:
+```bash
+printf '%s\n' 'net.ipv6.conf.all.disable_ipv6 = 1' 'net.ipv6.conf.default.disable_ipv6 = 1' 'net.ipv6.conf.lo.disable_ipv6 = 1' > /etc/sysctl.d/99-disable-ipv6.conf
+sysctl --system
+echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4
+```
+Cek hasilnya: `cat /proc/sys/net/ipv6/conf/all/disable_ipv6` harus `1`, dan `ip -6 addr` tidak menampilkan alamat IPv6.
+Jangan matikan IPv6 kalau VPS Anda hanya punya IPv6 (tanpa IPv4).
 
-</code></pre>
+---
 
 ### TESTED ON OS 
 - UBUNTU 20.04 22 24.04 24.10
