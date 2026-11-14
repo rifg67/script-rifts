@@ -31,8 +31,8 @@
 
 ### INSTALL SCRIPT (OTOMATIS, IPv4, JALAN DI LATAR BELAKANG)
 
-Isi **nama** dan **domain** seperti biasa (ditanya sekali di awal). Sesudah itu instalasi
-jalan sendiri tanpa enter lagi, dan **terminal boleh ditutup**.
+Layar setup bawaan akan menanyakan **nama** dan **domain** seperti biasa. Sesudah diisi,
+instalasi jalan sendiri di latar belakang tanpa enter lagi, dan **terminal boleh ditutup**.
 Download memakai `wget -4` (IPv4) dan IPv6 dimatikan otomatis.
 
 #### UBUNTU
@@ -56,7 +56,7 @@ wget -4 -nv -O setup.sh $U/setup.sh
 chmod +x install.sh setup.sh && ./install.sh
 ```
 Tambahan (boleh dilewati):
-- `./install.sh -r` : VPS reboot otomatis setelah instalasi selesai (kalau tidak, Anda ditanya di awal).
+- `./install.sh -r` : VPS reboot otomatis setelah instalasi selesai (kalau tidak ditulis, Anda ditanya sekali sebelum mulai).
 - `./install.sh -n NAMA -d DOMAIN` atau `-n NAMA -s SUBDOMAIN` : isi nama/domain lewat perintah, tanpa ditanya.
 
 #### CEK PROGRES

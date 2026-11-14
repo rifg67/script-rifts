@@ -1,14 +1,13 @@
 #!/bin/bash
 # install.sh - pemasang script-rifts tanpa ribet:
-#   non-interaktif (tanpa dialog/enter), IPv4 saja (IPv6 dimatikan), jalan di latar belakang.
+#   tanpa dialog/enter tambahan, IPv4 saja (IPv6 dimatikan), jalan di latar belakang.
 #
 # Pakai:
-#   ./install.sh                             isi nama + domain seperti biasa (ditanya sekali),
-#                                            sesudah itu jalan sendiri di latar belakang
-#   ./install.sh status | log | attach       cek status / lihat log / buka layar instalasi
+#   ./install.sh                 layar setup bawaan menanyakan nama + domain seperti biasa.
+#                                Sesudah diisi, terminal BOLEH ditutup, instalasi jalan sendiri.
+#   ./install.sh status | log | attach     cek status / lihat log / buka lagi layar instalasi
 # Opsi: -r reboot otomatis setelah selesai | -f jalan di depan (tanpa screen) | --dry-run
-#       -n NAMA -d DOMAIN | -n NAMA -s SUBDOMAIN  (opsional: isi nama/domain lewat perintah)
-# Terminal boleh ditutup setelah instalasi dimulai.
+#       -n NAMA -d DOMAIN | -n NAMA -s SUBDOMAIN   (opsional: isi nama/domain lewat perintah)
 
 WORKDIR=${WORKDIR:-/root}
 SETUP=${SETUP:-./setup.sh}
@@ -26,10 +25,10 @@ die() { echo "X  $*" >&2; exit 1; }
 
 cmd_status() {
   echo "Status : $(cat "$STATUS" 2>/dev/null || echo 'belum pernah dijalankan')"
-  screen -ls 2>/dev/null | grep -q "\.$SESSION" && echo "Sesi   : screen '$SESSION' masih berjalan (screen -r $SESSION)"
+  screen -ls 2>/dev/null | grep -q "\.$SESSION" && echo "Sesi   : screen '$SESSION' masih berjalan (./install.sh attach)"
   if [ -f "$LOG" ]; then
     echo "--- 15 baris terakhir ($LOG):"
-    tail -n 15 "$LOG" | sed -E 's/\x1b\[[0-9;?]*[A-Za-z]//g'
+    tail -n 15 "$LOG" | sed -E 's/\x1b\[[0-9;?]*[A-Za-z]//g' | tr -d '\r'
   fi
 }
 
@@ -48,7 +47,7 @@ while [ $# -gt 0 ]; do
     -r|--reboot)    REBOOT=1; shift ;;
     -f|--fg)        FG=1; shift ;;
     --dry-run)      DRY=1; shift ;;
-    -h|--help)      sed -n '2,11p' "$0"; exit 0 ;;
+    -h|--help)      awk 'NR>1 && /^#/ {print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) die "Opsi tidak dikenal: $1 (lihat ./install.sh --help)" ;;
   esac
 done
@@ -59,28 +58,26 @@ case "$OSID" in ubuntu|debian) ;; *) die "OS tidak didukung (${OSID:-?}). Pakai 
 SETUP=$(readlink -f "$SETUP" 2>/dev/null)
 [ -f "$SETUP" ] || die "setup.sh tidak ditemukan di folder ini."
 
-# kalau argumen kurang dan ini terminal, tanya sekali saja (sama seperti di setup.sh)
-if [ -z "$NAMA" ] || { [ -z "$DOMAIN_CUSTOM" ] && [ -z "$SUBDOMAIN" ]; }; then
-  [ -t 0 ] || die "Bukan terminal. Jalankan langsung, atau pakai: ./install.sh -n NAMA -d DOMAIN"
-  until [[ "$NAMA" =~ $RE ]]; do read -rp "? Masukkan Nama Anda (tanpa spasi): " NAMA; done
-  if [ -z "$DOMAIN_CUSTOM" ] && [ -z "$SUBDOMAIN" ]; then
-    echo "   [1] Gunakan Domain Sendiri"
-    echo "   [2] Gunakan Domain Random"
-    M=""; until [[ "$M" =~ ^[12]$ ]]; do read -rp "   Pilih opsi 1 atau 2 : " M; done
-    if [ "$M" = "1" ]; then until [[ "$DOMAIN_CUSTOM" =~ $RE ]]; do read -rp "? Masukkan domain Anda: " DOMAIN_CUSTOM; done
-    else until [[ "$SUBDOMAIN" =~ $RE ]]; do read -rp "? Masukkan subdomain (tanpa spasi): " SUBDOMAIN; done; fi
+# AUTO=1: nama/domain dari argumen (tanpa tanya). AUTO=0: layar setup bawaan yang bertanya.
+if [ -n "$NAMA$DOMAIN_CUSTOM$SUBDOMAIN" ]; then
+  AUTO=1
+  { [ -n "$NAMA" ] && { [ -n "$DOMAIN_CUSTOM" ] || [ -n "$SUBDOMAIN" ]; }; } \
+    || die "Isi lengkap: -n NAMA dan -d DOMAIN (atau -s SUBDOMAIN), atau kosongkan semuanya."
+  [[ "$NAMA" =~ $RE ]] || die "Nama tidak valid (huruf/angka/_ . - saja, tanpa spasi)."
+  if [ -n "$DOMAIN_CUSTOM" ] && [ -n "$SUBDOMAIN" ]; then die "Pilih salah satu: -d (domain sendiri) atau -s (subdomain random)."; fi
+  if [ -n "$DOMAIN_CUSTOM" ]; then
+    [[ "$DOMAIN_CUSTOM" =~ $RE ]] || die "Domain tidak valid."
+    MODE=1; VARNAME=dnss; VARVAL=$DOMAIN_CUSTOM
+  else
+    [[ "$SUBDOMAIN" =~ $RE ]] || die "Subdomain tidak valid."
+    MODE=2; VARNAME=dn1; VARVAL=$SUBDOMAIN
   fi
-  read -rp "? Reboot otomatis setelah instalasi selesai? (y/N): " R; [[ "$R" =~ ^[Yy]$ ]] && REBOOT=1
-fi
-
-[[ "$NAMA" =~ $RE ]] || die "Nama tidak valid (huruf/angka/_ . - saja, tanpa spasi)."
-if [ -n "$DOMAIN_CUSTOM" ] && [ -n "$SUBDOMAIN" ]; then die "Pilih salah satu: -d (domain sendiri) atau -s (subdomain random)."; fi
-if [ -n "$DOMAIN_CUSTOM" ]; then
-  [[ "$DOMAIN_CUSTOM" =~ $RE ]] || die "Domain tidak valid."
-  MODE=1; VARNAME=dnss; VARVAL=$DOMAIN_CUSTOM
 else
-  [[ "$SUBDOMAIN" =~ $RE ]] || die "Subdomain tidak valid."
-  MODE=2; VARNAME=dn1; VARVAL=$SUBDOMAIN
+  AUTO=0
+  [ "$DRY" = 1 ] || [ -t 0 ] || die "Jalankan dari terminal (SSH), atau pakai: ./install.sh -n NAMA -d DOMAIN"
+  if [ "$REBOOT" = 0 ] && [ -t 0 ]; then
+    read -rp "Reboot otomatis setelah instalasi selesai? (y/N): " R; [[ "$R" =~ ^[Yy]$ ]] && REBOOT=1
+  fi
 fi
 
 if screen -ls 2>/dev/null | grep -q "\.$SESSION"; then
@@ -110,17 +107,24 @@ grep -qs '^precedence ::ffff:0:0/96' "$GAICONF" || echo 'precedence ::ffff:0:0/9
 grep -qs 'inet4_only' "$HOME/.wgetrc" || echo 'inet4_only = on' >> "$HOME/.wgetrc"
 grep -qsx 'ipv4' "$HOME/.curlrc" || echo 'ipv4' >> "$HOME/.curlrc"
 
-# ---------- skrip yang dijalankan di latar belakang ----------
+# ---------- skrip yang dijalankan di dalam screen ----------
+if [ "$AUTO" = 1 ]; then
+  ENVLINE="export name='$NAMA' domain='$MODE' $VARNAME='$VARVAL'"
+  RUNLINE='bash "'"$SETUP"'" < /dev/null 2>&1 | tee -a "'"$LOG"'"; rc=${PIPESTATUS[0]}'
+else
+  ENVLINE=":"
+  # script(1) memberi terminal sungguhan: layar tanya nama/domain tampil persis seperti biasa, dan semuanya tercatat di log
+  RUNLINE='if command -v script >/dev/null 2>&1; then script -qefc "bash '"'$SETUP'"'" "'"$LOG"'"; rc=$?; else bash "'"$SETUP"'"; rc=$?; fi'
+fi
 cat > "$RUNNER" <<EOF_RUN
 #!/bin/bash
-export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1 APT_LISTCHANGES_FRONTEND=none UCF_FORCE_CONFFOLD=1 SLOWDNS_NO_PAUSE=1
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1 APT_LISTCHANGES_FRONTEND=none UCF_FORCE_CONFFOLD=1 SLOWDNS_NO_PAUSE=1 RIFTS_ANSWER=n
 export TERM="\${TERM:-xterm}"
-export name='$NAMA' domain='$MODE' $VARNAME='$VARVAL'
+$ENVLINE
 cd "$WORKDIR" || exit 1
 echo "berjalan sejak \$(date '+%F %T')" > "$STATUS"
 for i in \$(seq 1 60); do pgrep -x 'apt|apt-get|dpkg|unattended-upgr' >/dev/null || break; sleep 5; done
-bash "$SETUP" < /dev/null 2>&1 | tee -a "$LOG"
-rc=\${PIPESTATUS[0]}
+$RUNLINE
 if [ "\$rc" -eq 0 ] && [ -x "$MENUBIN" ]; then
   echo "SELESAI \$(date '+%F %T') - ketik: menu" > "$STATUS"
 else
@@ -133,18 +137,23 @@ chmod +x "$RUNNER"; : > "$LOG"; echo "mulai..." > "$STATUS"
 
 if [ "$DRY" = 1 ]; then echo "[dry-run] runner dibuat di $RUNNER, tidak dijalankan."; exit 0; fi
 
-echo "Instalasi dimulai | nama: $NAMA | $([ $MODE = 1 ] && echo "domain: $VARVAL" || echo "subdomain random: $VARVAL") | reboot otomatis: $([ $REBOOT = 1 ] && echo ya || echo tidak)"
-if [ "$FG" = 1 ]; then
-  exec bash "$RUNNER"
-fi
 command -v screen >/dev/null 2>&1 || apt-get install -y screen >/dev/null 2>&1
-if command -v screen >/dev/null 2>&1; then
-  screen -dmS "$SESSION" bash "$RUNNER"
+
+if [ "$AUTO" = 1 ]; then
+  echo "Instalasi dimulai | nama: $NAMA | $([ $MODE = 1 ] && echo "domain: $VARVAL" || echo "subdomain random: $VARVAL") | reboot otomatis: $([ $REBOOT = 1 ] && echo ya || echo tidak)"
+  if [ "$FG" = 1 ]; then exec bash "$RUNNER"; fi
+  if command -v screen >/dev/null 2>&1; then screen -dmS "$SESSION" bash "$RUNNER"; else nohup setsid bash "$RUNNER" > /dev/null 2>&1 & fi
+  echo
+  echo "Terminal BOLEH ditutup sekarang. Instalasi jalan sendiri."
+  echo "  Cek progres : ./install.sh status      (atau: tail -f $LOG)"
+  echo "  Lihat layar : ./install.sh attach      (keluar tanpa menghentikan: Ctrl+A lalu D)"
+  echo "  Selesai     : ketik 'menu'$([ $REBOOT = 1 ] && echo " (VPS reboot otomatis)")"
 else
-  nohup setsid bash "$RUNNER" > /dev/null 2>&1 &
+  echo
+  echo "Layar berikutnya = setup bawaan. Isi NAMA dan DOMAIN seperti biasa."
+  echo "Setelah itu terminal BOLEH ditutup, instalasi jalan sendiri di latar belakang."
+  echo "(Cek lagi nanti: ./install.sh status | attach)  | reboot otomatis: $([ $REBOOT = 1 ] && echo ya || echo tidak)"
+  sleep 3
+  if [ "$FG" = 1 ] || ! command -v screen >/dev/null 2>&1; then exec bash "$RUNNER"; fi
+  exec screen -S "$SESSION" bash "$RUNNER"
 fi
-echo
-echo "Terminal BOLEH ditutup sekarang. Instalasi jalan sendiri."
-echo "  Cek progres : ./install.sh status      (atau: tail -f $LOG)"
-echo "  Lihat layar : ./install.sh attach      (keluar tanpa menghentikan: Ctrl+A lalu D)"
-echo "  Selesai     : ketik 'menu'$([ $REBOOT = 1 ] && echo " (VPS reboot otomatis)")"
