@@ -5,7 +5,7 @@
 # Pakai:
 #   ./install.sh                 layar setup bawaan menanyakan nama + domain seperti biasa.
 #                                Sesudah diisi, terminal BOLEH ditutup, instalasi jalan sendiri.
-#   ./install.sh status | log | attach     cek status / lihat log / buka lagi layar instalasi
+#   ./install.sh status | log | attach | stop   cek status / lihat log / buka lagi layar / hentikan instalasi
 # Opsi: -r reboot otomatis setelah selesai | -f jalan di depan (tanpa screen) | --dry-run
 #       -n NAMA -d DOMAIN | -n NAMA -s SUBDOMAIN   (opsional: isi nama/domain lewat perintah)
 
@@ -19,6 +19,8 @@ SYSCTLF=${SYSCTLF:-/etc/sysctl.d/99-disable-ipv6.conf}
 GAICONF=${GAICONF:-/etc/gai.conf}
 MENUBIN=${MENUBIN:-/usr/local/sbin/menu}
 SESSION=rifts
+SCREENRC=${SCREENRC:-/root/.rifts-screenrc}
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
 RE='^[a-zA-Z0-9_.-]+$'
 
 die() { echo "X  $*" >&2; exit 1; }
@@ -35,8 +37,19 @@ cmd_status() {
 case "${1:-}" in
   status) cmd_status; exit 0 ;;
   log)    exec tail -n 40 -f "$LOG" ;;
-  attach) exec screen -r "$SESSION" ;;
+  attach) exec screen -U -r "$SESSION" ;;
+  stop)
+    screen -S "$SESSION" -X quit 2>/dev/null
+    for p in "$RUNNER" /root/setup.sh ssh-vpn.sh ins-xray.sh insshws.sh set-br.sh ohp.sh installsl.sh udp-custom.sh tools.sh pointing.sh; do pkill -f "(^|[ /])${p}( |\$)" 2>/dev/null; done
+    rm -f "$HOME/fim" 2>/dev/null
+    echo "SELESAI DIHENTIKAN $(date '+%F %T')" > "$STATUS"
+    echo "Instalasi dihentikan. Kalau apt/dpkg sempat kepotong, jalankan: dpkg --configure -a"
+    exit 0 ;;
 esac
+
+if screen -ls 2>/dev/null | grep -q "\.$SESSION"; then
+  die "Instalasi sudah berjalan (screen '$SESSION'). Cek: ./install.sh status | attach | stop"
+fi
 
 NAMA=""; DOMAIN_CUSTOM=""; SUBDOMAIN=""; REBOOT=0; FG=0; DRY=0
 while [ $# -gt 0 ]; do
@@ -94,6 +107,11 @@ if [ -d /etc/needrestart ] || [ -n "${NEEDRESTART_DIR:-}" ]; then
 fi
 if command -v debconf-set-selections >/dev/null 2>&1 && [ "$DRY" = 0 ]; then
   printf '%s\n' \
+    'debconf debconf/frontend select Noninteractive' \
+    'debconf debconf/priority select critical' \
+    'keyboard-configuration keyboard-configuration/layout select English (US)' \
+    'keyboard-configuration keyboard-configuration/variant select English (US)' \
+    'keyboard-configuration keyboard-configuration/xkb-keymap select us' \
     'keyboard-configuration keyboard-configuration/layoutcode string us' \
     'keyboard-configuration keyboard-configuration/modelcode string pc105' \
     'console-setup console-setup/charmap47 select UTF-8' \
@@ -118,12 +136,12 @@ else
 fi
 cat > "$RUNNER" <<EOF_RUN
 #!/bin/bash
-export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1 APT_LISTCHANGES_FRONTEND=none UCF_FORCE_CONFFOLD=1 SLOWDNS_NO_PAUSE=1 RIFTS_ANSWER=n
+export LANG=C.UTF-8 LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1 APT_LISTCHANGES_FRONTEND=none UCF_FORCE_CONFFOLD=1 SLOWDNS_NO_PAUSE=1 RIFTS_ANSWER=n
 export TERM="\${TERM:-xterm}"
 $ENVLINE
 cd "$WORKDIR" || exit 1
 echo "berjalan sejak \$(date '+%F %T')" > "$STATUS"
-for i in \$(seq 1 60); do pgrep -x 'apt|apt-get|dpkg|unattended-upgr' >/dev/null || break; sleep 5; done
+for i in \$(seq 1 60); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 5; done
 $RUNLINE
 if [ "\$rc" -eq 0 ] && [ -x "$MENUBIN" ]; then
   echo "SELESAI \$(date '+%F %T') - ketik: menu" > "$STATUS"
@@ -133,6 +151,7 @@ fi
 tee -a "$LOG" < "$STATUS"
 if [ "$REBOOT" = 1 ]; then echo "Reboot 10 detik lagi..." | tee -a "$LOG"; sleep 10; reboot; fi
 EOF_RUN
+printf '%s\n' 'defutf8 on' 'defencoding utf8' 'startup_message off' 'defscrollback 5000' > "$SCREENRC"
 chmod +x "$RUNNER"; : > "$LOG"; echo "mulai..." > "$STATUS"
 
 if [ "$DRY" = 1 ]; then echo "[dry-run] runner dibuat di $RUNNER, tidak dijalankan."; exit 0; fi
@@ -142,7 +161,7 @@ command -v screen >/dev/null 2>&1 || apt-get install -y screen >/dev/null 2>&1
 if [ "$AUTO" = 1 ]; then
   echo "Instalasi dimulai | nama: $NAMA | $([ $MODE = 1 ] && echo "domain: $VARVAL" || echo "subdomain random: $VARVAL") | reboot otomatis: $([ $REBOOT = 1 ] && echo ya || echo tidak)"
   if [ "$FG" = 1 ]; then exec bash "$RUNNER"; fi
-  if command -v screen >/dev/null 2>&1; then screen -dmS "$SESSION" bash "$RUNNER"; else nohup setsid bash "$RUNNER" > /dev/null 2>&1 & fi
+  if command -v screen >/dev/null 2>&1; then screen -U -c "$SCREENRC" -dmS "$SESSION" bash "$RUNNER"; else nohup setsid bash "$RUNNER" > /dev/null 2>&1 & fi
   echo
   echo "Terminal BOLEH ditutup sekarang. Instalasi jalan sendiri."
   echo "  Cek progres : ./install.sh status      (atau: tail -f $LOG)"
@@ -155,5 +174,5 @@ else
   echo "(Cek lagi nanti: ./install.sh status | attach)  | reboot otomatis: $([ $REBOOT = 1 ] && echo ya || echo tidak)"
   sleep 3
   if [ "$FG" = 1 ] || ! command -v screen >/dev/null 2>&1; then exec bash "$RUNNER"; fi
-  exec screen -S "$SESSION" bash "$RUNNER"
+  exec screen -U -c "$SCREENRC" -S "$SESSION" bash "$RUNNER"
 fi
