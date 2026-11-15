@@ -64,8 +64,11 @@ Tambahan (boleh dilewati):
 ./install.sh status     # status + 15 baris log terakhir
 ./install.sh log        # ikuti log langsung (Ctrl+C untuk keluar)
 ./install.sh attach     # buka layar instalasi (keluar: Ctrl+A lalu D)
+./install.sh stop       # hentikan instalasi yang sedang berjalan
 ```
 Log lengkap ada di `/root/install-rifts.log`. Kalau sudah selesai, ketik `menu`.
+
+Kalau instalasi dihentikan (`stop`) saat apt/dpkg sedang jalan, rapikan dulu dengan `dpkg --configure -a` sebelum mengulang dari awal.
 
 ---
 
@@ -132,5 +135,5 @@ Jangan matikan IPv6 kalau VPS Anda hanya punya IPv6 (tanpa IPv4).
 ```
 ### Auther
 
-### CONTACT PX-OFFICIAL <br>
-<a href="https://t.me/frel01" target=”_blank”><img src="https://img.shields.io/static/v1?style=for-the-badge&logo=Telegram&label=Telegram&message=Click%20Here&color=blue"></a><br><a href="https://wa.me/6283151636921" target=”_blank”><img src="https://img.shields.io/static/v1?style=for-the-badge&logo=Whatsapp&label=Whatsapp&message=Click%20Here&color=green"></a><br>
+### CONTACT RIFGANSSDEV <br>
+<a href="https://t.me/rifsganss" target="_blank"><img src="https://img.shields.io/static/v1?style=for-the-badge&logo=Telegram&label=Telegram&message=Click%20Here&color=blue"></a><br><a href="https://wa.me/6283854965145" target="_blank"><img src="https://img.shields.io/static/v1?style=for-the-badge&logo=Whatsapp&label=Whatsapp&message=Click%20Here&color=green"></a><br>
