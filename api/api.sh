@@ -78,6 +78,9 @@ setup_bot() {
         echo -e "${blue}📁 Downloading API-XWAN package...${neutral}"
         curl -sL "https://raw.githubusercontent.com/rifg67/script-rifts/main/api/api-xwan.zip" -o /usr/bin/api-xwan.zip
         cd /usr/bin && 7z x -punlock api-xwan.zip >/dev/null 2>&1
+        # api.js terbaru (auth semua endpoint + /deleteaccount) dan script hapus akun menimpa isi zip lama
+        curl -sL "https://raw.githubusercontent.com/rifg67/script-rifts/main/api/api.js" -o /usr/bin/api-xwan/api.js
+        curl -sL "https://raw.githubusercontent.com/rifg67/script-rifts/main/api/delete_account.sh" -o /usr/bin/api-xwan/delete_account.sh
         rm api-xwan.zip* && chmod +x api-xwan/* && cd
     fi
 
