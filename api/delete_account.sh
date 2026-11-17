@@ -1,4 +1,6 @@
 #!/bin/bash
+# Service API jalan dengan PATH minim (tanpa /usr/sbin) -> userdel "command not found". Tambahkan manual.
+export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
 # Pakai: bash delete_account.sh <vmess|vless|trojan|ssh> <username>
 # Dipanggil oleh api.js (/deleteaccount). Penanda di config.json beda per protokol:
 #   vmess "###"   vless "#&"   trojan "#!"   -> hapus hanya milik protokol yang diminta.
