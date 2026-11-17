@@ -17,8 +17,26 @@ esac
 
 if [[ "$type" == "ssh" ]]; then
   if ! id "$user" &>/dev/null; then echo "ERROR: user $user tidak ditemukan"; exit 1; fi
-  pkill -u "$user" 2>/dev/null
-  userdel -f "$user" >/dev/null 2>&1
+  # --- putuskan SESI AKTIF dulu (userdel saja tidak memutus koneksi yang sudah tersambung) ---
+  # 1) Dropbear (dipakai SSH WS/tunnel): prosesnya milik root, jadi cari PID dari log login (cara yang sama seperti menu "tendang")
+  LOG=/var/log/auth.log; [ -e /var/log/secure ] && LOG=/var/log/secure
+  for pid in $(grep -i "dropbear\[[0-9]*\]" "$LOG" 2>/dev/null | grep -i "auth succeeded for '${user}'" \
+               | sed -E 's/.*dropbear\[([0-9]+)\].*/\1/' | sort -u); do
+    ps -p "$pid" -o comm= 2>/dev/null | grep -q dropbear && kill -9 "$pid" 2>/dev/null
+  done
+  # 2) OpenSSH: proses "sshd: user [priv]" dan "sshd: user@..."
+  pkill -KILL -f "^sshd: ${user}(@| \\[)" 2>/dev/null
+  pkill -KILL -u "$user" 2>/dev/null
+  sleep 1
+  err=$(userdel -f "$user" 2>&1)
+  if id "$user" &>/dev/null; then
+    # coba sekali lagi setelah semua proses user dibunuh
+    pkill -KILL -u "$user" 2>/dev/null; sleep 1
+    err2=$(userdel -f "$user" 2>&1)
+    if id "$user" &>/dev/null; then
+      echo "ERROR: userdel gagal: ${err2:-${err:-tanpa pesan}}"; exit 1
+    fi
+  fi
   sed -i "/^${user}:/d" $R/etc/group 2>/dev/null
   sed -i "/^#ssh# ${user} /d" $R/etc/ssh/.ssh.db 2>/dev/null
   rm -f "$R/etc/ssh/${user}" "$R/etc/kyt/limit/ssh/ip/${user}" \
