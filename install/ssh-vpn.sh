@@ -199,6 +199,13 @@ echo "/bin/false" >> /etc/shells
 echo "/usr/sbin/nologin" >> /etc/shells
 /etc/init.d/ssh restart
 /etc/init.d/dropbear restart
+
+# Patch dropbear: naikkan batas koneksi belum-login per IP (default 5).
+# Tanpa ini SSH lewat haproxy/ws putus-nyambung saat banyak user login bersamaan.
+wget -q -O /root/fixdropbear.sh "${REPO}install/fixdropbear.sh" && bash /root/fixdropbear.sh \
+    || echo "[WARN] fixdropbear gagal, lanjut tanpa patch (jalankan manual: bash /root/fixdropbear.sh)"
+wget -q -O /root/cekvps.sh "${REPO}install/cekvps.sh" && chmod +x /root/cekvps.sh
+
 wget -q ${REPO}install/setrsyslog.sh && chmod +x setrsyslog.sh && ./setrsyslog.sh
 
 if [[ "$OS_NAME" == "debian" && "$OS_VERSION" == "10" ]] || [[ "$OS_NAME" == "ubuntu" && "$OS_VERSION" == "20.04" ]]; then
