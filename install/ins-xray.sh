@@ -214,30 +214,96 @@ chmod 640 /var/log/xray/*.log
 # 📌 XRAY CORE VERSION
 # ═══════════════════════════════════════════════════════════════
 
-# Gunakan installer resmi XTLS/Xray-install untuk versi stable terbaru.
-# Jangan gunakan -u www-data: opsi tersebut tidak didukung installer resmi.
-# Service khusus ins-xray.sh dibuat ulang di bagian bawah script ini.
-XRAY_INSTALLER="/tmp/xray-install-release.sh"
-XRAY_INSTALLER_URL="https://github.com/XTLS/Xray-install/raw/main/install-release.sh"
+# ---------------------------------------------------------------
+# VERSI XRAY DIKUNCI
+# Isi dua variabel di bawah lewat mirror-xray.sh (jalankan di VPS yang Xray-nya sudah terbukti jalan).
+# Kalau keduanya terisi: Xray dipasang dari zip yang di-hosting di repo sendiri
+#   (${REPO}xray/Xray-linux-64.zip), cadangannya rilis resmi XTLS dengan versi yang sama.
+#   Keduanya WAJIB cocok SHA256, jadi kalau repo asli hilang pun instalasi tetap jalan.
+# Kalau salah satu kosong: memakai installer resmi XTLS (versi stable terbaru), seperti sebelumnya.
+# ---------------------------------------------------------------
+XRAY_VERSION="v26.11.9"     # dikunci: versi yang berjalan di VPS (dicek 19 Nov 2026)
+XRAY_SHA256="b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82"      # SHA256 Xray-linux-64.zip v26.11.9 (dari file .dgst resmi XTLS)
 
-echo -e "[ ${CYAN}INFO${NC} ] Mengunduh installer resmi Xray..."
-if ! curl -fL --retry 3 --connect-timeout 15 "$XRAY_INSTALLER_URL" -o "$XRAY_INSTALLER"; then
-    echo -e "[ ${RED}ERROR${NC} ] Gagal mengunduh installer resmi Xray."
+XRAY_BIN_DIR="${XRAY_BIN_DIR:-/usr/local/bin}"
+XRAY_ASSET_DIR="${XRAY_ASSET_DIR:-/usr/local/share/xray}"
+
+pasang_xray_core() {
+    local zip="/tmp/Xray-linux-64.zip" tmpd="/tmp/xray-pasang" u ok=0 got f
+    local mirror="${XRAY_MIRROR_URL:-${REPO}xray/Xray-linux-64.zip}"
+    local resmi="${XRAY_OFFICIAL_URL:-https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip}"
+    command -v unzip >/dev/null 2>&1 || apt-get install -y unzip >/dev/null 2>&1
+    for u in "$mirror" "$resmi"; do
+        rm -f "$zip"
+        echo -e "[ ${CYAN}INFO${NC} ] Mengunduh Xray ${XRAY_VERSION} dari: $u"
+        if ! curl -fL --retry 3 --connect-timeout 15 "$u" -o "$zip" 2>/dev/null; then
+            echo -e "[ ${CYAN}INFO${NC} ] Gagal mengunduh, coba sumber berikutnya..."
+            continue
+        fi
+        got=$(sha256sum "$zip" | cut -d' ' -f1)
+        if [ "$got" = "${XRAY_SHA256,,}" ]; then ok=1; break; fi
+        echo -e "[ ${RED}WARN${NC} ] SHA256 tidak cocok, file ditolak. Coba sumber berikutnya..."
+    done
+    if [ "$ok" != 1 ]; then
+        echo -e "[ ${RED}ERROR${NC} ] Xray ${XRAY_VERSION} tidak bisa diunduh dengan SHA256 yang benar. Script dihentikan."
+        exit 1
+    fi
+    rm -rf "$tmpd"; mkdir -p "$tmpd"
+    if ! unzip -oq "$zip" -d "$tmpd" || [ ! -f "$tmpd/xray" ]; then
+        echo -e "[ ${RED}ERROR${NC} ] Isi zip Xray tidak valid. Script dihentikan."
+        exit 1
+    fi
+    mkdir -p "$XRAY_BIN_DIR" "$XRAY_ASSET_DIR"
+    install -m 755 "$tmpd/xray" "$XRAY_BIN_DIR/xray"
+    for f in geoip.dat geosite.dat; do
+        [ -f "$tmpd/$f" ] && install -m 644 "$tmpd/$f" "$XRAY_ASSET_DIR/$f"
+    done
+    rm -rf "$tmpd" "$zip"
+}
+
+XRAY_PINNED=0
+if [ -n "$XRAY_VERSION" ] && [ -n "$XRAY_SHA256" ]; then
+    case "${XRAY_UNAME_M:-$(uname -m)}" in
+        x86_64|amd64) XRAY_PINNED=1 ;;
+        *) echo -e "[ ${CYAN}INFO${NC} ] Kunci versi hanya untuk x86_64. Arsitektur ini memakai installer resmi." ;;
+    esac
+fi
+
+if [ "$XRAY_PINNED" = 1 ]; then
+    pasang_xray_core
+else
+    # Installer resmi XTLS/Xray-install (versi stable terbaru).
+    # Jangan gunakan -u www-data: opsi tersebut tidak didukung installer resmi.
+    # Service khusus ins-xray.sh dibuat ulang di bagian bawah script ini.
+    XRAY_INSTALLER="/tmp/xray-install-release.sh"
+    XRAY_INSTALLER_URL="${XRAY_INSTALLER_URL:-https://github.com/XTLS/Xray-install/raw/main/install-release.sh}"
+
+    echo -e "[ ${CYAN}INFO${NC} ] Mengunduh installer resmi Xray..."
+    if ! curl -fL --retry 3 --connect-timeout 15 "$XRAY_INSTALLER_URL" -o "$XRAY_INSTALLER"; then
+        echo -e "[ ${RED}ERROR${NC} ] Gagal mengunduh installer resmi Xray."
+        exit 1
+    fi
+
+    if ! bash "$XRAY_INSTALLER" install --no-update-service; then
+        echo -e "[ ${RED}ERROR${NC} ] Instalasi Xray gagal. Script dihentikan agar konfigurasi tidak dilanjutkan dalam keadaan tidak lengkap."
+        exit 1
+    fi
+fi
+
+if [[ ! -x "$XRAY_BIN_DIR/xray" ]]; then
+    echo -e "[ ${RED}ERROR${NC} ] Binary $XRAY_BIN_DIR/xray tidak ditemukan setelah instalasi."
     exit 1
 fi
 
-if ! bash "$XRAY_INSTALLER" install --no-update-service; then
-    echo -e "[ ${RED}ERROR${NC} ] Instalasi Xray gagal. Script dihentikan agar konfigurasi tidak dilanjutkan dalam keadaan tidak lengkap."
-    exit 1
-fi
-
-if [[ ! -x /usr/local/bin/xray ]]; then
-    echo -e "[ ${RED}ERROR${NC} ] Binary /usr/local/bin/xray tidak ditemukan setelah instalasi."
-    exit 1
+if [ "$XRAY_PINNED" = 1 ]; then
+    if ! "$XRAY_BIN_DIR/xray" version 2>/dev/null | head -n1 | grep -qF "${XRAY_VERSION#v}"; then
+        echo -e "[ ${RED}ERROR${NC} ] Versi Xray terpasang tidak sama dengan versi yang dikunci (${XRAY_VERSION}). Script dihentikan."
+        exit 1
+    fi
 fi
 
 echo -e "[ ${GREEN}OK${NC} ] Binary Xray terpasang:"
-/usr/local/bin/xray version
+"$XRAY_BIN_DIR/xray" version
 
 # ═══════════════════════════════════════════════════════════════
 # 🔐 SSL CERTIFICATE
