@@ -8,7 +8,7 @@ ENC_URL="${1:-$REPO_RAW/setup.enc}"
 TMP_ENC=$(mktemp)
 TMP_PLAIN=$(mktemp)
 chmod 600 "$TMP_PLAIN"
-trap 'rm -f "$TMP_ENC" "$TMP_PLAIN"' EXIT
+trap 'rm -f "$TMP_ENC" "$TMP_PLAIN"; unset RIFTS_AES_PW' EXIT
 
 echo "Mengambil paket terenkripsi..."
 if ! curl -fsSL "$ENC_URL" -o "$TMP_ENC"; then
@@ -30,6 +30,13 @@ if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -k "$PW" \
   echo "Password salah, atau paket korup/rusak." >&2
   exit 1
 fi
+
+# Teruskan password yang sama ke script asli lewat environment variable
+# sementara (cuma hidup selama proses ini jalan, tidak pernah ditulis ke
+# disk). Ini dipakai supaya kalau setup.sh asli nanti manggil update.sh
+# (yang juga wrapper terenkripsi) dari dalam dirinya, update.sh tidak
+# perlu nanya password lagi -- cukup sekali di awal.
+export RIFTS_AES_PW="$PW"
 unset PW
 
 bash "$TMP_PLAIN"
