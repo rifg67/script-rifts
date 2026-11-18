@@ -16,7 +16,15 @@ if ! curl -fsSL "$ENC_URL" -o "$TMP_ENC"; then
   exit 1
 fi
 
-read -rsp "Password: " PW; echo
+# Kalau dipanggil dari dalam setup.sh (yang sudah minta password di awal),
+# password itu diwariskan lewat env var RIFTS_AES_PW -- jadi tidak perlu
+# nanya ulang. Kalau dijalankan sendiri (misal update manual lewat menu),
+# env var ini kosong, jadi tetap nanya seperti biasa.
+if [[ -n "${RIFTS_AES_PW:-}" ]]; then
+  PW="$RIFTS_AES_PW"
+else
+  read -rsp "Password: " PW; echo
+fi
 
 if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -k "$PW" \
       -in "$TMP_ENC" -out "$TMP_PLAIN" 2>/dev/null; then
