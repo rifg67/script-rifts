@@ -62,7 +62,8 @@ setup_bot() {
     print_rainbow "🚀 Initializing API-XWAN Setup..."
 
     NODE_VERSION=$(node -v 2>/dev/null | grep -oP '(?<=v)\d+' || echo "0")
-    rm -f /var/lib/dpkg/stato* /var/lib/dpkg/lock*
+    # (dihapus: rm lock dpkg berbahaya kalau apt sedang jalan)
+    while pgrep -x 'apt|apt-get|dpkg' >/dev/null; do sleep 3; done
 
     if [ "$NODE_VERSION" -lt 22 ]; then
         echo -e "${yellow}📦 Installing Node.js v22...${neutral}"
@@ -76,6 +77,7 @@ setup_bot() {
     # === Extract API Files ===
     if [ ! -f /usr/bin/api-xwan/api.js ]; then
         echo -e "${blue}📁 Downloading API-XWAN package...${neutral}"
+        command -v 7z >/dev/null 2>&1 || apt-get install -y p7zip-full >/dev/null 2>&1
         curl -sL "https://raw.githubusercontent.com/rifg67/script-rifts/main/api/api-xwan.zip" -o /usr/bin/api-xwan.zip
         cd /usr/bin && 7z x -punlock api-xwan.zip >/dev/null 2>&1
         # api.js terbaru (auth semua endpoint + /deleteaccount) dan script hapus akun menimpa isi zip lama
@@ -91,7 +93,8 @@ setup_bot() {
     }
 
     # === Generate AUTH_KEY ===
-    NEW_AUTH_KEY=$(openssl rand -hex 16)
+    OLD_KEY=$(grep -oP '(?<=export AUTH_KEY=")[^"]+' /etc/profile 2>/dev/null | tail -1)
+    if [ -n "$OLD_KEY" ]; then NEW_AUTH_KEY="$OLD_KEY"; else NEW_AUTH_KEY=$(openssl rand -hex 16); fi
     sed -i '/export AUTH_KEY=/d' /etc/profile
     echo "export AUTH_KEY=\"$NEW_AUTH_KEY\"" >> /etc/profile
     source /etc/profile
@@ -106,7 +109,8 @@ setup_bot() {
 
     echo "export KEYAPI=\"$BOT_TOKEN\"" >/etc/botapi.conf
     echo "export CHATID=\"$CHAT_ID\"" >>/etc/botapi.conf
-    grep -q "botapi.conf" /etc/profile || echo "source /etc/botapi.conf" >> /etc/profile
+    chmod 600 /etc/botapi.conf
+    grep -q "botapi.conf" /etc/profile || echo '[ -r /etc/botapi.conf ] && source /etc/botapi.conf' >> /etc/profile
     source /etc/botapi.conf
 
     MESSAGE="🚀 *api-xwan Installed Successfully* 🚀
