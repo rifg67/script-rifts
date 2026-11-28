@@ -633,6 +633,7 @@ cat > /etc/xray/config.json << END
   "policy": {
     "levels": {
       "0": {
+        "connIdle": 3600,
         "statsUserDownlink": true,
         "statsUserUplink": true
       }
